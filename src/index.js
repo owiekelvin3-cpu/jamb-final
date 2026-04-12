@@ -1,13 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import TestComponent from './TestComponent';
+import JambSuccessGuide from './JambSuccessGuide';
 import reportWebVitals from './reportWebVitals';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <TestComponent />
+    <JambSuccessGuide />
   </React.StrictMode>
 );
 
