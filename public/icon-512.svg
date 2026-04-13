@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="128" fill="url(#gradient1)"/>
+  <defs>
+    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16a34a;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <g filter="url(#shadow)">
+    <!-- Book/Education Symbol -->
+    <path d="M128 128C128 86.9 160 54.8 192 54.8C224 54.8 256 86.9 256 128C256 169.1 224 201.2 192 201.2C160 201.2 128 169.1 128 128Z" fill="white" opacity="0.9"/>
+    <path d="M149 149C149 146.8 150.8 145 153 145C158.2 145 161 146.8 161 149C161 151.2 158.2 153 153 153C150.8 153 149 151.2 149 149Z" fill="white"/>
+    <path d="M202 149C202 146.8 203.8 145 206 145C211.2 145 213 146.8 213 149C213 151.2 210.2 153 206 153C203.8 153 202 151.2 202 149Z" fill="white"/>
+    <path d="M255 149C255 146.8 256.8 145 259 145C264.2 145 266 146.8 266 149C266 151.2 263.2 153 258 153C256.8 153 255 151.2 255 149Z" fill="white"/>
+    <path d="M307 149C307 146.8 308.8 145 311 145C316.2 145 318 146.8 318 149C318 151.2 315.2 153 311 153C308.8 153 307 151.2 307 149Z" fill="white"/>
+    <path d="M358 149C358 146.8 359.8 145 362 145C368.2 145 370 146.8 370 149C370 151.2 367.2 153 362 153C359.8 153 358 151.2 358 149Z" fill="white"/>
+    <!-- JAMB Text -->
+    <text x="256" y="340" font-family="Arial Black, sans-serif" font-size="64" font-weight="900" text-anchor="middle" fill="white">JAMB</text>
+    <text x="256" y="400" font-family="Arial, sans-serif" font-size="36" font-weight="600" text-anchor="middle" fill="white" opacity="0.9">LEARNING</text>
+  </g>
+  <defs>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" floodOpacity="0.3"/>
+    </filter>
+  </defs>
+</svg>

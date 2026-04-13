@@ -1,0 +1,26 @@
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="192" height="192" rx="48" fill="url(#gradient1)"/>
+  <defs>
+    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16a34a;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <g filter="url(#shadow)">
+    <!-- Book/Education Symbol -->
+    <path d="M48 48C48 32.6 60.6 20 76 20C91.4 20 104 32.6 104 48C104 63.4 91.4 76 76 76C60.6 76 48 63.4 48 48Z" fill="white" opacity="0.9"/>
+    <path d="M56 56C56 53.8 57.8 52 60 52C62.2 52 64 53.8 64 56C64 58.2 62.2 60 60 60C57.8 60 56 58.2 56 56Z" fill="white"/>
+    <path d="M76 56C76 53.8 77.8 52 80 52C82.2 52 84 53.8 84 56C84 58.2 82.2 60 80 60C77.8 60 76 58.2 76 56Z" fill="white"/>
+    <path d="M96 56C96 53.8 97.8 52 100 52C102.2 52 104 53.8 104 56C104 58.2 102.2 60 100 60C97.8 60 96 58.2 96 56Z" fill="white"/>
+    <path d="M116 56C116 53.8 117.8 52 120 52C122.2 52 124 53.8 124 56C124 58.2 122.2 60 120 60C117.8 60 116 58.2 116 56Z" fill="white"/>
+    <path d="M136 56C136 53.8 137.8 52 140 52C142.2 52 144 53.8 144 56C144 58.2 142.2 60 140 60C137.8 60 136 58.2 136 56Z" fill="white"/>
+    <!-- JAMB Text -->
+    <text x="96" y="130" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">JAMB</text>
+    <text x="96" y="150" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="white" opacity="0.9">LEARNING</text>
+  </g>
+  <defs>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.3"/>
+    </filter>
+  </defs>
+</svg>
