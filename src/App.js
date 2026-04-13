@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import Auth from "./components/Auth";
 
 // ─── GOOGLE FONTS ─────────────────────────────────────────────────────────────
 const FontLoader = () => (
@@ -1040,7 +1042,8 @@ function ProgressBar({ value, color = "#2563EB", height = 8, label }) {
 }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
-export default function App() {
+function AuthenticatedApp() {
+  const { user, logout } = useAuth();
   const [screen, setScreen] = useState("home");
   const [progress, setProgress] = useState(loadProgress);
   const [selectedSubject, setSelectedSubject] = useState(null);
@@ -1276,11 +1279,31 @@ export default function App() {
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
               <div>
                 <p style={{ fontSize:12, color:"rgba(255,255,255,0.6)", marginBottom:2 }}>{today}</p>
-                <h1 style={{ fontFamily:"'Sora',sans-serif", fontSize:22, fontWeight:800 }}>Welcome back! 👋</h1>
+                <h1 style={{ fontFamily:"'Sora',sans-serif", fontSize:22, fontWeight:800 }}>Welcome back! {user?.name || "Student"}! </h1>
               </div>
-              <div style={{ textAlign:"center", background:"rgba(255,255,255,0.1)", borderRadius:12, padding:"8px 14px" }}>
-                <div style={{ display:"flex", alignItems:"center", gap:4, color:"#F59E0B" }}><Icon.Flame/><span style={{ fontWeight:800, fontSize:20 }}>{streak}</span></div>
-                <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)" }}>day streak</div>
+              <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                <div style={{ textAlign:"center", background:"rgba(255,255,255,0.1)", borderRadius:12, padding:"8px 14px" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:4, color:"#F59E0B" }}><Icon.Flame/><span style={{ fontWeight:800, fontSize:20 }}>{streak}</span></div>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)" }}>day streak</div>
+                </div>
+                <button 
+                  onClick={logout}
+                  style={{
+                    background: "rgba(239, 68, 68, 0.2)",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    color: "#fff",
+                    borderRadius: "8px",
+                    padding: "8px 16px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease"
+                  }}
+                  onMouseOver={(e) => e.target.style.background = "rgba(239, 68, 68, 0.3)"}
+                  onMouseOut={(e) => e.target.style.background = "rgba(239, 68, 68, 0.2)"}
+                >
+                  Logout
+                </button>
               </div>
             </div>
             <div style={{ background:"rgba(255,255,255,0.1)", borderRadius:14, padding:16 }}>
@@ -1701,4 +1724,41 @@ export default function App() {
   }
 
   return null;
+}
+
+// Main App wrapper with authentication
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppWithAuth />
+    </AuthProvider>
+  );
+}
+
+// App component that uses authentication
+function AppWithAuth() {
+  const { loading, isAuthenticated } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        fontFamily: 'DM Sans, sans-serif'
+      }}>
+        <div style={{ textAlign: 'center', color: 'white' }}>
+          <div style={{ fontSize: '24px', marginBottom: '16px' }}>Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Auth />;
+  }
+
+  return <AuthenticatedApp />;
 }
