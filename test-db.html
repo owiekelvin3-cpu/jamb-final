@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Connection Test - JAMB Success</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: #F0F4FF;
+            padding: 40px;
+            margin: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+        .success {
+            background: #D1FAE5;
+            color: #059669;
+            border: 1px solid #059669;
+        }
+        .error {
+            background: #FEE2E2;
+            color: #EF4444;
+            border: 1px solid #EF4444;
+        }
+        .info {
+            background: #EFF6FF;
+            color: #2563EB;
+            border: 1px solid #2563EB;
+        }
+        .test-result {
+            margin: 20px 0;
+            padding: 20px;
+            background: #F8FAFC;
+            border-radius: 8px;
+            border-left: 4px solid #2563EB;
+        }
+        button {
+            background: #2563EB;
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin: 10px 5px 0 0;
+        }
+        button:hover {
+            background: #1D4ED8;
+        }
+        pre {
+            background: #F8FAFC;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗄️ Database Connection Test</h1>
+        <p>Testing Supabase database connection and functionality...</p>
+        
+        <div id="status" class="status info">
+            Initializing connection test...
+        </div>
+        
+        <div id="test-results"></div>
+        
+        <button onclick="testConnection()">Test Connection</button>
+        <button onclick="testAuth()">Test Authentication</button>
+        <button onclick="testDatabase()">Test Database</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://lwfxbyuquzjgukrznwqk.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3ZnhieXVxdXpqZ3Vrcnpud3FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTk3MTcsImV4cCI6MjA5MTY5NTcxN30.vSxj_bpNsNUREo6THSmFdEqE7xIc8flWcskEoLXiuIQ';
+        
+        let supabase;
+        let testResults = [];
+        
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+        }
+        
+        function addTestResult(test, result, details = '') {
+            testResults.push({
+                test: test,
+                result: result,
+                details: details,
+                timestamp: new Date().toLocaleString()
+            });
+            
+            const resultsEl = document.getElementById('test-results');
+            resultsEl.innerHTML = testResults.map(r => `
+                <div class="test-result">
+                    <strong>${r.test}:</strong> 
+                    <span style="color: ${r.result === 'PASS' ? '#059669' : '#EF4444'}">
+                        ${r.result}
+                    </span>
+                    <br>
+                    <small>${r.details}</small>
+                    <br>
+                    <small style="color: #64748b">${r.timestamp}</small>
+                </div>
+            `).join('');
+        }
+        
+        async function testConnection() {
+            updateStatus('Testing Supabase connection...', 'info');
+            
+            try {
+                // Initialize Supabase client
+                supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                
+                // Test basic connection
+                const { data, error } = await supabase.from('progress').select('count').single();
+                
+                if (error) {
+                    updateStatus('Connection failed: ' + error.message, 'error');
+                    addTestResult('Supabase Connection', 'FAIL', error.message);
+                } else {
+                    updateStatus('✅ Connection successful!', 'success');
+                    addTestResult('Supabase Connection', 'PASS', 'Successfully connected to Supabase');
+                }
+            } catch (err) {
+                updateStatus('❌ Connection error: ' + err.message, 'error');
+                addTestResult('Supabase Connection', 'FAIL', err.message);
+            }
+        }
+        
+        async function testAuth() {
+            if (!supabase) {
+                updateStatus('Please test connection first', 'error');
+                return;
+            }
+            
+            updateStatus('Testing authentication...', 'info');
+            
+            try {
+                // Test getting current session
+                const { data, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                    updateStatus('Auth test failed: ' + error.message, 'error');
+                    addTestResult('Authentication', 'FAIL', error.message);
+                } else {
+                    updateStatus('✅ Authentication working!', 'success');
+                    addTestResult('Authentication', 'PASS', 'Auth system is functional');
+                    
+                    // Test signup function
+                    const testEmail = 'test@example.com';
+                    const testPassword = 'testpassword123';
+                    
+                    const { data: signupData, error: signupError } = await supabase.auth.signUp({
+                        email: testEmail,
+                        password: testPassword
+                    });
+                    
+                    if (signupError && !signupError.message.includes('already registered')) {
+                        addTestResult('Signup Function', 'FAIL', signupError.message);
+                    } else {
+                        addTestResult('Signup Function', 'PASS', 'Signup endpoint is accessible');
+                    }
+                }
+            } catch (err) {
+                updateStatus('❌ Auth test error: ' + err.message, 'error');
+                addTestResult('Authentication', 'FAIL', err.message);
+            }
+        }
+        
+        async function testDatabase() {
+            if (!supabase) {
+                updateStatus('Please test connection first', 'error');
+                return;
+            }
+            
+            updateStatus('Testing database operations...', 'info');
+            
+            try {
+                // Test reading from progress table
+                const { data: progressData, error: progressError } = await supabase
+                    .from('progress')
+                    .select('*')
+                    .limit(5);
+                
+                if (progressError) {
+                    addTestResult('Progress Table Read', 'FAIL', progressError.message);
+                } else {
+                    addTestResult('Progress Table Read', 'PASS', `Found ${progressData.length} records`);
+                }
+                
+                // Test reading from test_results table
+                const { data: testData, error: testError } = await supabase
+                    .from('test_results')
+                    .select('*')
+                    .limit(5);
+                
+                if (testError) {
+                    addTestResult('Test Results Table Read', 'FAIL', testError.message);
+                } else {
+                    addTestResult('Test Results Table Read', 'PASS', `Found ${testData.length} records`);
+                }
+                
+                // Test writing to progress table
+                const testUserId = 'test-user-' + Date.now();
+                const { data: insertData, error: insertError } = await supabase
+                    .from('progress')
+                    .insert({
+                        user_id: testUserId,
+                        lesson_id: 'test_lesson',
+                        completed: false,
+                        score: 0
+                    });
+                
+                if (insertError) {
+                    addTestResult('Progress Table Write', 'FAIL', insertError.message);
+                } else {
+                    addTestResult('Progress Table Write', 'PASS', 'Successfully inserted test record');
+                    
+                    // Clean up test data
+                    await supabase
+                        .from('progress')
+                        .delete()
+                        .eq('user_id', testUserId);
+                }
+                
+                updateStatus('✅ Database tests completed!', 'success');
+                
+            } catch (err) {
+                updateStatus('❌ Database test error: ' + err.message, 'error');
+                addTestResult('Database Operations', 'FAIL', err.message);
+            }
+        }
+        
+        function clearResults() {
+            testResults = [];
+            document.getElementById('test-results').innerHTML = '';
+            updateStatus('Results cleared', 'info');
+        }
+        
+        // Auto-test on page load
+        window.addEventListener('load', () => {
+            updateStatus('Database test page loaded. Click buttons to test functionality.', 'info');
+            addTestResult('Page Load', 'PASS', 'Test page initialized successfully');
+        });
+    </script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Register = ({ onToggleMode }) => {
   const [name, setName] = useState('');
@@ -8,11 +9,14 @@ const Register = ({ onToggleMode }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [success, setSuccess] = useState('');
+  const { signUp } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -27,23 +31,20 @@ const Register = ({ onToggleMode }) => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
+      const result = await signUp(email, password, name);
+      
+      if (result.success) {
+        setSuccess('Account created successfully! Please check your email to verify your account.');
+        // Clear form
+        setName('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+      } else {
+        setError(result.error);
       }
-
-      login(data.user, data.token);
     } catch (err) {
-      setError(err.message);
+      setError('Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -164,6 +165,20 @@ const Register = ({ onToggleMode }) => {
             borderRadius: '6px'
           }}>
             {error}
+          </div>
+        )}
+
+        {success && (
+          <div style={{
+            color: '#16a34a',
+            fontSize: '14px',
+            textAlign: 'center',
+            padding: '8px',
+            background: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            borderRadius: '6px'
+          }}>
+            {success}
           </div>
         )}
 

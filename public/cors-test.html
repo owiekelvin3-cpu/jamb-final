@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase CORS Test</title>
+</head>
+<body>
+    <h1>Testing Supabase Connection</h1>
+    <div id="result"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const { createClient } = supabase;
+        
+        const supabaseUrl = 'https://lwfxbyuquzjgukrznwqk.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3ZnhieXVxdXpqZ3Vrcnpud3FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTk3MTcsImV4cCI6MjA5MTY5NTcxN30.vSxj_bpNsNUREo6THSmFdEqE7xIc8flWcskEoLXiuIQ';
+        
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        async function testConnection() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                console.log('Testing connection...');
+                
+                // Test basic auth call
+                const { data, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                    resultDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                    console.error('Error:', error);
+                } else {
+                    resultDiv.innerHTML = `<p style="color: green;">Connection successful! Data: ${JSON.stringify(data)}</p>`;
+                    console.log('Success:', data);
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<p style="color: red;">Fetch Error: ${err.message}</p>`;
+                console.error('Fetch Error:', err);
+            }
+        }
+        
+        testConnection();
+    </script>
+</body>
+</html>

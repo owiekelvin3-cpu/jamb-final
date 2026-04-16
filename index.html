@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="JAMB Success - Complete JAMB preparation app with structured learning paths">
+    <title>JAMB Success - Complete JAMB Preparation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="screen">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <h2>Loading JAMB Success...</h2>
+                <p>Preparing your learning journey</p>
+            </div>
+        </div>
+
+        <!-- Auth Screen -->
+        <div id="auth-screen" class="screen hidden">
+            <div class="auth-container">
+                <div class="auth-card">
+                    <h1 class="auth-title">JAMB Success</h1>
+                    <p class="auth-subtitle">Complete JAMB Preparation</p>
+                    
+                    <!-- Login Form -->
+                    <div id="login-form" class="auth-form">
+                        <h2>Welcome Back</h2>
+                        <div class="form-group">
+                            <label for="login-email">Email</label>
+                            <input type="email" id="login-email" placeholder="Enter your email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">Password</label>
+                            <input type="password" id="login-password" placeholder="Enter your password" required>
+                        </div>
+                        <button type="submit" id="login-btn" class="btn-primary">Sign In</button>
+                        <div id="login-error" class="error-message"></div>
+                    </div>
+
+                    <!-- Signup Form -->
+                    <div id="signup-form" class="auth-form hidden">
+                        <h2>Create Account</h2>
+                        <div class="form-group">
+                            <label for="signup-name">Full Name</label>
+                            <input type="text" id="signup-name" placeholder="Enter your full name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-email">Email</label>
+                            <input type="email" id="signup-email" placeholder="Enter your email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-password">Password</label>
+                            <input type="password" id="signup-password" placeholder="Enter your password (min 6 characters)" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-confirm">Confirm Password</label>
+                            <input type="password" id="signup-confirm" placeholder="Confirm your password" required>
+                        </div>
+                        <button type="submit" id="signup-btn" class="btn-primary">Create Account</button>
+                        <div id="signup-error" class="error-message"></div>
+                        <div id="signup-success" class="success-message"></div>
+                    </div>
+
+                    <div class="auth-toggle">
+                        <span id="auth-toggle-text">Don't have an account?</span>
+                        <button id="toggle-to-signup" class="btn-secondary">Sign Up</button>
+                        <button id="toggle-to-login" class="btn-secondary hidden">Sign In</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Home Screen -->
+        <div id="home-screen" class="screen hidden">
+            <header class="app-header">
+                <div class="header-content">
+                    <h1 class="app-title">JAMB Success</h1>
+                    <p class="app-subtitle">Complete JAMB Preparation</p>
+                    <div class="header-actions">
+                        <button id="user-menu-btn" class="btn-secondary">
+                            <span class="menu-icon">👥</span> Profile
+                        </button>
+                        <button id="logout-btn" class="btn-secondary">
+                            <span class="menu-icon">🚪</span> Logout
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <div class="subjects-grid">
+                    <!-- Mathematics -->
+                    <div class="subject-card" data-subject="mathematics">
+                        <div class="subject-header">
+                            <span class="subject-icon">📐</span>
+                            <h2 class="subject-title">Mathematics</h2>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="math-progress"></div>
+                            <span class="progress-text" id="math-progress-text">0%</span>
+                        </div>
+                        <div class="subject-levels">
+                            <div class="level-card" data-level="1">
+                                <h3>Level 1: Foundation</h3>
+                                <p>Basic mathematical concepts</p>
+                                <div class="level-status" id="math-level-1">🔒 Locked</div>
+                            </div>
+                            <div class="level-card" data-level="2">
+                                <h3>Level 2: Preparatory</h3>
+                                <p>Building foundation for advanced mathematics</p>
+                                <div class="level-status" id="math-level-2">🔒 Locked</div>
+                            </div>
+                            <div class="level-card" data-level="3">
+                                <h3>Level 3: Core</h3>
+                                <p>Advanced mathematical concepts</p>
+                                <div class="level-status" id="math-level-3">🔒 Locked</div>
+                            </div>
+                            <div class="level-card" data-level="4">
+                                <h3>Level 4: JAMB Mastery</h3>
+                                <p>Exam-level preparation</p>
+                                <div class="level-status" id="math-level-4">🔒 Locked</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Physics -->
+                    <div class="subject-card" data-subject="physics">
+                        <div class="subject-header">
+                            <span class="subject-icon">⚡</span>
+                            <h2 class="subject-title">Physics</h2>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="physics-progress"></div>
+                            <span class="progress-text" id="physics-progress-text">0%</span>
+                        </div>
+                        <div class="subject-levels">
+                            <div class="level-card" data-level="1">
+                                <h3>Level 1: Foundation</h3>
+                                <p>Introduction to physical concepts</p>
+                                <div class="level-status" id="physics-level-1">🔒 Locked</div>
+                            </div>
+                            <div class="level-card" data-level="2">
+                                <h3>Level 2: Preparatory</h3>
+                                <p>Fundamental physical laws</p>
+                                <div class="level-status" id="physics-level-2">🔒 Locked</div>
+                            </div>
+                            <div class="level-card" data-level="3">
+                                <h3>Level 3: Core</h3>
+                                <p>Energy, electricity, and waves</p>
+                                <div class="level-status" id="physics-level-3">🔒 Locked</div>
+                            </div>
+                            <div class="level-card" data-level="4">
+                                <h3>Level 4: JAMB Mastery</h3>
+                                <p>Advanced physics concepts</p>
+                                <div class="level-status" id="physics-level-4">🔒 Locked</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chemistry -->
+                    <div class="subject-card" data-subject="chemistry">
+                        <div class="subject-header">
+                            <span class="subject-icon">🧪</span>
+                            <h2 class="subject-title">Chemistry</h2>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="chemistry-progress"></div>
+                            <span class="progress-text" id="chemistry-progress-text">0%</span>
+                        </div>
+                        <div class="subject-levels">
+                            <div class="level-card" data-level="1">
+                                <h3>Level 1: Foundation</h3>
+                                <p>Introduction to matter and basic chemical concepts</p>
+                                <div class="level-status" id="chemistry-level-1">🔒 Locked</div>
+                            </div>
+                            <div class="level-card" data-level="2">
+                                <h3>Level 2: Preparatory</h3>
+                                <p>Atomic structure and chemical reactions</p>
+                                <div class="level-status" id="chemistry-level-2">🔒 Locked</div>
+                            </div>
+                            <div class="level-card" data-level="3">
+                                <h3>Level 3: Core</h3>
+                                <p>Chemical bonding and quantitative chemistry</p>
+                                <div class="level-status" id="chemistry-level-3">🔒 Locked</div>
+                            </div>
+                            <div class="level-card" data-level="4">
+                                <h3>Level 4: JAMB Mastery</h3>
+                                <p>Advanced chemistry and exam preparation</p>
+                                <div class="level-status" id="chemistry-level-4">🔒 Locked</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- English -->
+                    <div class="subject-card" data-subject="english">
+                        <div class="subject-header">
+                            <span class="subject-icon">📝</span>
+                            <h2 class="subject-title">English Language</h2>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="english-progress"></div>
+                            <span class="progress-text" id="english-progress-text">0%</span>
+                        </div>
+                        <div class="subject-levels">
+                            <div class="level-card" data-level="1">
+                                <h3>Level 1: Foundation</h3>
+                                <p>Basic language skills and vocabulary</p>
+                                <div class="level-status" id="english-level-1">🔒 Locked</div>
+                            </div>
+                            <div class="level-card" data-level="2">
+                                <h3>Level 2: Preparatory</h3>
+                                <p>Grammar and sentence structure</p>
+                                <div class="level-status" id="english-level-2">🔒 Locked</div>
+                            </div>
+                            <div class="level-card" data-level="3">
+                                <h3>Level 3: Core</h3>
+                                <p>Comprehension and writing skills</p>
+                                <div class="level-status" id="english-level-3">🔒 Locked</div>
+                            </div>
+                            <div class="level-card" data-level="4">
+                                <h3>Level 4: JAMB Mastery</h3>
+                                <p>Advanced comprehension and exam preparation</p>
+                                <div class="level-status" id="english-level-4">🔒 Locked</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mock Exam Access -->
+                    <div id="mock-exam-access" class="mock-exam-card hidden">
+                        <h2 class="mock-title">🎯 Mock Exam</h2>
+                        <p class="mock-subtitle">Complete all Level 4 topics to unlock</p>
+                        <button id="start-mock-btn" class="btn-primary btn-large">Start Mock Exam</button>
+                    </div>
+                </div>
+
+                <!-- Overall Progress -->
+                <div class="overall-progress" id="overall-progress-card">
+                    <h3>Overall Progress</h3>
+                    <div class="progress-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Overall Completion:</span>
+                            <span class="stat-value" id="overall-percentage">0%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Subjects Completed:</span>
+                            <span class="stat-value" id="subjects-completed">0/4</span>
+                        </div>
+                    </div>
+                    <div class="progress-message" id="progress-message">
+                        Start with Mathematics Foundation level to begin your JAMB journey!
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Topic Screen -->
+        <div id="topic-screen" class="screen hidden">
+            <header class="topic-header">
+                <button id="topic-back-btn" class="btn-secondary">
+                    <span>←</span> Back to Subject
+                </button>
+                <div class="topic-info">
+                    <h1 id="topic-title" class="topic-title">Topic Title</h1>
+                    <div class="topic-meta">
+                        <span class="subject-icon" id="topic-subject-icon"></span>
+                        <span class="subject-name" id="topic-subject-name">Subject Name</span>
+                        <span class="topic-level" id="topic-level-info">Level 1: Foundation</span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="topic-content">
+                <!-- Learn Step -->
+                <div id="learn-step" class="topic-step">
+                    <div class="step-header">
+                        <h2 id="step-title" class="step-title">📖 Learn</h2>
+                        <div class="step-indicator">
+                            <span class="step-dot active" id="learn-dot"></span>
+                            <span class="step-line active" id="learn-line"></span>
+                            <span class="step-dot" id="practice-dot"></span>
+                            <span class="step-line" id="practice-line"></span>
+                            <span class="step-dot" id="test-dot"></span>
+                            <span class="step-line" id="test-line"></span>
+                        </div>
+                    </div>
+
+                    <div class="content-card">
+                        <div class="learn-content" id="learn-content">
+                            <h3 id="learn-overview" class="section-title">Overview</h3>
+                            <p id="learn-description" class="section-text">Topic overview will appear here</p>
+                            
+                            <h4 class="subsection-title">🔑 Key Points</h4>
+                            <ul id="key-points" class="key-points-list"></ul>
+                            
+                            <h4 class="subsection-title">💡 Worked Examples</h4>
+                            <div id="examples" class="examples-list"></div>
+                            
+                            <div class="youtube-link" id="youtube-link">
+                                <a href="#" target="_blank" rel="noopener noreferrer">
+                                    <span>▶️</span> Watch on YouTube
+                                </a>
+                            </div>
+                            
+                            <button id="start-practice-btn" class="btn-primary">✏️ Start Practice →</button>
+                        </div>
+                    </div>
+
+                <!-- Practice Step -->
+                <div id="practice-step" class="topic-step hidden">
+                    <div class="step-header">
+                        <h2 class="step-title">📝 Practice Mode</h2>
+                        <div class="step-indicator">
+                            <span class="step-dot" id="learn-dot"></span>
+                            <span class="step-line" id="learn-line"></span>
+                            <span class="step-dot active" id="practice-dot"></span>
+                            <span class="step-line active" id="practice-line"></span>
+                            <span class="step-dot" id="test-dot"></span>
+                            <span class="step-line" id="test-line"></span>
+                        </div>
+                    </div>
+
+                    <div class="content-card">
+                        <div class="practice-content" id="practice-content">
+                            <div id="practice-questions" class="questions-container"></div>
+                            
+                            <button id="start-test-btn" class="btn-primary">📝 Take the Test →</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Test Step -->
+                <div id="test-step" class="topic-step hidden">
+                    <div class="step-header">
+                        <h2 class="step-title">🎯 Test Mode</h2>
+                        <div class="step-indicator">
+                            <span class="step-dot" id="learn-dot"></span>
+                            <span class="step-line" id="learn-line"></span>
+                            <span class="step-dot" id="practice-dot"></span>
+                            <span class="step-line" id="practice-line"></span>
+                            <span class="step-dot active" id="test-dot"></span>
+                            <span class="step-line active" id="test-line"></span>
+                        </div>
+                    </div>
+
+                    <div class="content-card">
+                        <div class="test-content" id="test-content">
+                            <div id="test-questions" class="questions-container"></div>
+                            
+                            <div class="test-actions">
+                                <button id="back-to-practice-btn" class="btn-secondary">← Back to Practice</button>
+                                <button id="submit-test-btn" class="btn-primary">🎯 Submit Test</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Test Result Screen -->
+        <div id="test-result-screen" class="screen hidden">
+            <header class="result-header">
+                <button id="result-back-btn" class="btn-secondary">
+                    <span>←</span> Back to Topic
+                </button>
+            </header>
+
+            <main class="result-content">
+                <div class="result-card">
+                    <div id="result-icon" class="result-icon">🏆</div>
+                    <h2 id="result-title" class="result-title">Test Passed!</h2>
+                    <div class="score-display">
+                        <span id="result-score" class="score-value">85%</span>
+                    </div>
+                    <p id="result-message" class="result-message">Excellent work! You've mastered this topic. Next topic unlocked! 🚀</p>
+                    
+                    <div class="result-actions">
+                        <button id="next-topic-btn" class="btn-primary">🚀 Next Topic →</button>
+                        <button id="retry-test-btn" class="btn-secondary hidden">🔄 Retake Test</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Mock Exam Screen -->
+        <div id="mock-screen" class="screen hidden">
+            <header class="mock-header">
+                <h1 class="mock-title">🎯 Mock Exam</h1>
+                <div class="mock-info">
+                    <span class="mock-subject">Full Syllabus</span>
+                    <span class="mock-details">60-100 mixed questions • 2-hour time limit</span>
+                </div>
+                <button id="mock-back-btn" class="btn-secondary">
+                    <span>←</span> Back to Dashboard
+                </button>
+            </header>
+
+            <main class="mock-content">
+                <div class="mock-timer" id="mock-timer">
+                    <span class="timer-icon">⏰</span>
+                    <span id="time-display" class="time-value">2:00:00</span>
+                </div>
+                
+                <div class="mock-questions" id="mock-questions-container"></div>
+                
+                <div class="mock-actions">
+                    <button id="submit-mock-btn" class="btn-primary">Submit Exam</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Confetti Container -->
+    <div id="confetti-container" class="confetti-container"></div>
+    <script src="app.js"></script>
+</body>
+</html>

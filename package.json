@@ -4,13 +4,14 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^13.5.0",
-    "mongodb": "^7.1.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-router-dom": "^6.8.0",
     "react-scripts": "^5.0.1",
     "web-vitals": "^2.1.4"
   },
@@ -19,8 +20,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "deploy": "npm run build && echo 'Build completed - Ready for deployment'",
-    "backend": "cd backend && npm install && npm start"
+    "deploy": "npm run build && echo 'Build completed - Ready for deployment'"
   },
   "eslintConfig": {
     "extends": [
@@ -45,7 +45,6 @@
     "postcss": "^8.4.31",
     "serialize-javascript": "^7.0.5",
     "underscore": "^1.13.8",
-    "@tootallnate/once": "^3.0.1",
-    "webpack-dev-server": "^5.2.1"
+    "@tootallnate/once": "^3.0.1"
   }
 }

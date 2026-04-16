@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Login = ({ onToggleMode }) => {
   const [email, setEmail] = useState('');
@@ -7,6 +8,7 @@ const Login = ({ onToggleMode }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -14,23 +16,16 @@ const Login = ({ onToggleMode }) => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+      const result = await login(email, password);
+      
+      if (result.success) {
+        // Login successful, navigate to dashboard
+        navigate('/dashboard');
+      } else {
+        setError(result.error);
       }
-
-      login(data.user, data.token);
     } catch (err) {
-      setError(err.message);
+      setError('Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
