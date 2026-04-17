@@ -1,21 +1,36 @@
 {
   "version": 2,
   "name": "jamb-learning",
-  "buildCommand": "npm run build",
-  "outputDirectory": "build",
-  "installCommand": "npm install",
-  "framework": "create-react-app",
+  "buildCommand": "echo 'No build needed - serving static files'",
+  "outputDirectory": ".",
+  "installCommand": "echo 'No install needed'",
+  "framework": null,
   "routes": [
+    {
+      "src": "/index.html",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/app.js",
+      "dest": "/app.js"
+    },
+    {
+      "src": "/curriculum.js",
+      "dest": "/curriculum.js"
+    },
+    {
+      "src": "/supabase-client.js",
+      "dest": "/supabase-client.js"
+    },
+    {
+      "src": "/styles.css",
+      "dest": "/styles.css"
+    },
     {
       "src": "/(.*)",
       "dest": "/index.html"
     }
   ],
-  "build": {
-    "env": {
-      "NODE_ENV": "production"
-    }
-  },
   "git": {
     "deploymentEnabled": true
   }
