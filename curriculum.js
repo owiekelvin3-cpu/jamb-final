@@ -1,4 +1,5 @@
 // JAMB Curriculum Data for Vanilla JavaScript
+console.log('Loading curriculum data...');
 
 // Complete JAMB Curriculum Structure with 4 Levels per Subject
 const CURRICULUM = {
@@ -649,3 +650,5 @@ window.Curriculum = {
   isTopicUnlocked,
   canAccessMockExam
 };
+
+console.log('Curriculum loaded and exported successfully');

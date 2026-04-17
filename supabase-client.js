@@ -1,5 +1,14 @@
 // Supabase Client for Vanilla JavaScript
+console.log('Loading Supabase client...');
+
+// Check if supabase is available
+if (typeof supabase === 'undefined') {
+    console.error('Supabase library not loaded!');
+    throw new Error('Supabase library not loaded. Make sure the CDN script is loaded before this file.');
+}
+
 const { createClient } = supabase;
+console.log('Supabase client loaded successfully');
 
 // Supabase configuration
 const SUPABASE_URL = 'https://lwfxbyuquzjgukrznwqk.supabase.co';

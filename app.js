@@ -888,6 +888,37 @@ function updateMockTimerDisplay() {
 // Initialize App
 function initApp() {
     console.log('Initializing JAMB Success app...');
+    console.log('SupabaseClient available:', !!window.SupabaseClient);
+    console.log('Curriculum available:', !!window.Curriculum);
+    
+    // Check if required dependencies are loaded
+    if (!window.SupabaseClient) {
+        console.error('SupabaseClient not loaded - showing error screen');
+        document.getElementById('app').innerHTML = `
+            <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
+                <div style="text-align: center; padding: 20px;">
+                    <h2 style="color: #dc2626;">Error Loading Application</h2>
+                    <p>Supabase client failed to load. Please refresh the page.</p>
+                    <button onclick="window.location.reload()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">Refresh</button>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    if (!window.Curriculum) {
+        console.error('Curriculum not loaded - showing error screen');
+        document.getElementById('app').innerHTML = `
+            <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
+                <div style="text-align: center; padding: 20px;">
+                    <h2 style="color: #dc2626;">Error Loading Application</h2>
+                    <p>Curriculum data failed to load. Please refresh the page.</p>
+                    <button onclick="window.location.reload()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">Refresh</button>
+                </div>
+            </div>
+        `;
+        return;
+    }
     
     // Hide loading screen immediately
     showLoading(false);
@@ -896,26 +927,21 @@ function initApp() {
     showScreen('auth');
     
     // Check if user is already logged in
-    if (window.SupabaseClient) {
-        SupabaseClient.getCurrentUser()
-            .then(result => {
-                console.log('User check result:', result);
-                if (result.success && result.user) {
-                    currentUser = result.user;
-                    loadProgress();
-                    showScreen('home');
-                } else {
-                    showScreen('auth');
-                }
-            })
-            .catch(error => {
-                console.error('Error checking user session:', error);
+    SupabaseClient.getCurrentUser()
+        .then(result => {
+            console.log('User check result:', result);
+            if (result.success && result.user) {
+                currentUser = result.user;
+                loadProgress();
+                showScreen('home');
+            } else {
                 showScreen('auth');
-            });
-    } else {
-        console.error('SupabaseClient not loaded');
-        showScreen('auth');
-    }
+            }
+        })
+        .catch(error => {
+            console.error('Error checking user session:', error);
+            showScreen('auth');
+        });
     
     // Set up event listeners
     setupEventListeners();
