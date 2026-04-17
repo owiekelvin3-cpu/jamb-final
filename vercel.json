@@ -1,34 +1,50 @@
 {
   "version": 2,
-  "name": "jamb-learning",
+  "name": "jamb-cbt-platform",
   "buildCommand": "echo 'No build needed - serving static files'",
   "outputDirectory": ".",
   "installCommand": "echo 'No install needed'",
   "framework": null,
   "routes": [
     {
-      "src": "/index.html",
-      "dest": "/index.html"
+      "src": "/index-new.html",
+      "dest": "/index-new.html"
     },
     {
-      "src": "/app.js",
-      "dest": "/app.js"
+      "src": "/config.js",
+      "dest": "/config.js"
     },
     {
-      "src": "/curriculum.js",
-      "dest": "/curriculum.js"
+      "src": "/database.js",
+      "dest": "/database.js"
     },
     {
-      "src": "/supabase-client.js",
-      "dest": "/supabase-client.js"
+      "src": "/auth.js",
+      "dest": "/auth.js"
     },
     {
-      "src": "/styles.css",
-      "dest": "/styles.css"
+      "src": "/exam-engine.js",
+      "dest": "/exam-engine.js"
+    },
+    {
+      "src": "/ui-components.js",
+      "dest": "/ui-components.js"
+    },
+    {
+      "src": "/app-new.js",
+      "dest": "/app-new.js"
+    },
+    {
+      "src": "/styles-new.css",
+      "dest": "/styles-new.css"
+    },
+    {
+      "src": "/",
+      "dest": "/index-new.html"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/index-new.html"
     }
   ],
   "git": {
