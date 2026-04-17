@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { getProgress as fetchProgressFromDb, saveProgress as saveProgressToDb, saveTestResult } from "./supabase";
-import { CURRICULUM, getSubjectById, getLevelById, getTopicById, getSubjectProgress, getNextTopic, isTopicUnlocked, canAccessMockExam } from "./curriculum";
+import { CURRICULUM, getTopicById, getSubjectProgress as calculateSubjectProgress, getNextTopic, isTopicUnlocked as calculateTopicUnlocked } from "./curriculum";
 import Auth from "./components/Auth";
-import ProtectedRoute from "./components/ProtectedRoute";
 
 // ─── GOOGLE FONTS ─────────────────────────────────────────────────────
 const FontLoader = () => (
@@ -106,7 +105,7 @@ export default function App() {
 
 // App component that uses authentication
 function AppWithAuth() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [screen, setScreen] = useState("home");
   const [progress, setProgress] = useState(loadLocalProgress());
   const [selectedSubject, setSelectedSubject] = useState(null);
@@ -118,10 +117,6 @@ function AppWithAuth() {
   const [showFeedback, setShowFeedback] = useState({});
   const [testSubmitted, setTestSubmitted] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [mockMode, setMockMode] = useState(false);
-  const [mockAnswers, setMockAnswers] = useState({});
-  const [mockSubmitted, setMockSubmitted] = useState(false);
-  const [mockTimeLeft, setMockTimeLeft] = useState(120 * 60);
 
   useEffect(() => {
     let mounted = true;
@@ -149,22 +144,18 @@ function AppWithAuth() {
   }, [progress]);
 
   const getSubjectProgress = useCallback((subjectId) => {
-    return getSubjectProgress(subjectId, progress);
-  }, [progress]);
-
-  const overallProgress = useMemo(() => {
-    const subjects = Object.keys(CURRICULUM);
-    return Math.round(subjects.reduce((sum, subjectId) => sum + getSubjectProgress(subjectId).percentage, 0) / subjects.length);
+    return calculateSubjectProgress(subjectId, progress);
   }, [progress]);
 
   const allSubjectsComplete = useMemo(() => {
     return Object.keys(CURRICULUM).every(subjectId => getSubjectProgress(subjectId).percentage === 100);
-  }, [progress]);
+  }, [getSubjectProgress]);
 
   const handleTopicSelect = (subjectId, levelId, topicId) => {
     setSelectedSubject(subjectId);
     setSelectedLevel(levelId);
     setSelectedTopic(topicId);
+    setScreen("topic");
     setTopicStep("learn");
     setPracticeAnswers({});
     setTestAnswers({});
@@ -211,11 +202,20 @@ function AppWithAuth() {
     } catch (error) {
       console.error('Error saving test result:', error);
     }
-  };
+  }, [selectedSubject, selectedLevel, selectedTopic, user, testAnswers]);
+
+  // Show Auth component if user is not authenticated
+  if (!user) {
+    return <Auth />;
+  }
 
   const handleBack = () => {
     if (topicStep === "test" && testSubmitted) {
       setTopicStep("learn");
+    } else if (screen === "topic") {
+      setScreen("subject");
+      setSelectedTopic(null);
+      setSelectedLevel(null);
     } else {
       setSelectedSubject(null);
       setSelectedLevel(null);
@@ -224,13 +224,72 @@ function AppWithAuth() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      setScreen("home");
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+  // ─── CONFETTI COMPONENT ─────────────────────────────────────────────────────
+  const Confetti = () => {
+    useEffect(() => {
+      const colors = ['#f44336', '#eab308', '#f59e0b', '#10b981', '#3b82f6'];
+      const confettiCount = 50;
+      
+      const confetti = Array.from({ length: confettiCount }, (_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        top: -10,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * 360,
+        scale: Math.random() * 0.5 + 0.5,
+        emoji: ['🎉', '🎊', '🌟', '✨', '🎈'][Math.floor(Math.random() * 5)]
+      }));
+      
+      const container = document.getElementById('confetti-container');
+      if (!container) return;
+      
+      container.innerHTML = '';
+      confetti.forEach(particle => {
+        const element = document.createElement('div');
+        element.style.cssText = `
+          position: fixed;
+          left: ${particle.left}%;
+          top: ${particle.top}px;
+          width: 10px;
+          height: 10px;
+          background: ${particle.color};
+          border-radius: 50%;
+          transform: rotate(${particle.rotation}deg) scale(${particle.scale});
+          font-size: ${particle.scale * 20}px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          pointer-events: none;
+          animation: fall 3s ease-in forwards;
+        `;
+        element.textContent = particle.emoji;
+        container.appendChild(element);
+      });
+      
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes fall {
+          to {
+            transform: translateY(100vh) rotate(720deg);
+            opacity: 0;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      return () => {
+        const container = document.getElementById('confetti-container');
+        if (container) {
+          container.innerHTML = '';
+        }
+        if (document.head.contains(style)) {
+          document.head.removeChild(style);
+        }
+      };
+    }, []);
+
+    return <div id="confetti-container" />;
   };
 
   // ─── HOME SCREEN ─────────────────────────────────────────────────────
@@ -276,7 +335,13 @@ function AppWithAuth() {
               return (
                 <div
                   key={subjectId}
-                  onClick={() => isUnlocked ? setSelectedSubject(subjectId) : null}
+                  onClick={() => {
+                    if (!isUnlocked) return;
+                    setSelectedSubject(subjectId);
+                    setSelectedLevel(null);
+                    setSelectedTopic(null);
+                    setScreen("subject");
+                  }}
                   className="fade-in card-hover"
                   style={{
                     background: isUnlocked ? subject.color : '#e2e8f0',
@@ -444,7 +509,7 @@ function AppWithAuth() {
                   
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                     {level.topics.map(topic => {
-                      const isTopicUnlocked = isTopicUnlocked(selectedSubject, level.id, topic.id);
+                      const isTopicUnlocked = calculateTopicUnlocked(selectedSubject, level.id, topic.id);
                       const topicProgress = progress[selectedSubject]?.[topic.id];
                       
                       return (
@@ -521,7 +586,6 @@ function AppWithAuth() {
   // ─── TOPIC SCREEN ─────────────────────────────────────────────────────
   if (screen === "topic") {
     const subject = CURRICULUM[selectedSubject];
-    const level = getLevelById(selectedSubject, selectedLevel);
     const topic = getTopicById(selectedSubject, selectedLevel, selectedTopic);
     const nextTopic = getNextTopic(selectedSubject, selectedLevel, selectedTopic, progress);
     
@@ -1074,7 +1138,9 @@ function AppWithAuth() {
         )}
         
         {/* TEST RESULT */}
-        {topicStep === "test" && testSubmitted && (
+        {topicStep === "test" && testSubmitted && (() => {
+          const passed = progress[selectedSubject]?.[selectedTopic]?.completed || false;
+          return (
           <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px' }}>
             <div className="fade-in" style={{ 
               background: passed ? 'linear-gradient(135deg,#059669,#10B981)' : 'linear-gradient(135deg,#DC2626,#EF4444)',
@@ -1189,7 +1255,8 @@ function AppWithAuth() {
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </div>
     );
   }
@@ -1204,10 +1271,10 @@ function AppWithAuth() {
 
 // ─── MOCK EXAM COMPONENT ─────────────────────────────────────────────────────
 function MockExam({ onBack, user }) {
-  const [mockQuestions, setMockQuestions] = useState([]);
-  const [mockAnswers, setMockAnswers] = useState({});
-  const [mockSubmitted, setMockSubmitted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(120 * 60);
+    const [mockQuestions, setMockQuestions] = useState([]);
+    const [mockAnswers, setMockAnswers] = useState({});
+    const [mockSubmitted, setMockSubmitted] = useState(false);
+    const [timeLeft, setTimeLeft] = useState(120 * 60);
   const [examStarted, setExamStarted] = useState(false);
 
   useEffect(() => {
@@ -1283,6 +1350,14 @@ function MockExam({ onBack, user }) {
   };
 
   if (mockSubmitted) {
+    // Calculate score and passed status
+    let correct = 0;
+    mockQuestions.forEach(q => {
+      if (mockAnswers[q.id] === q.answer) correct++;
+    });
+    const score = Math.round((correct / mockQuestions.length) * 100);
+    const passed = score >= 70;
+
     return (
       <div style={{ minHeight: '100vh', background: '#F0F4FF', fontFamily: "'DM Sans', sans-serif" }}>
         <FontLoader/>
@@ -1298,7 +1373,7 @@ function MockExam({ onBack, user }) {
               fontWeight: 800, 
               marginBottom: 16
             }}>
-              🎯 Mock Exam Complete!
+              Mock Exam Complete!
             </h2>
             <div style={{ fontSize: 24, marginBottom: 24 }}>
               <div style={{ fontSize: 56, marginBottom: 16 }}>{score}%</div>
@@ -1467,71 +1542,4 @@ function MockExam({ onBack, user }) {
         </div>
       </div>
     );
-  }
-}
-
-// ─── CONFETTI COMPONENT ─────────────────────────────────────────────────────
-function Confetti() {
-  useEffect(() => {
-    const colors = ['#f44336', '#eab308', '#f59e0b', '#10b981', '#3b82f6'];
-    const confettiCount = 50;
-    
-    const confetti = Array.from({ length: confettiCount }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      top: -10,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      rotation: Math.random() * 360,
-      scale: Math.random() * 0.5 + 0.5,
-      emoji: ['🎉', '🎊', '🌟', '✨', '🎈'][Math.floor(Math.random() * 5)]
-    }));
-    
-    const container = document.getElementById('confetti-container');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    confetti.forEach(particle => {
-      const element = document.createElement('div');
-      element.style.cssText = `
-        position: fixed;
-        left: ${particle.left}%;
-        top: ${particle.top}px;
-        width: 10px;
-        height: 10px;
-        background: ${particle.color};
-        border-radius: 50%;
-        transform: rotate(${particle.rotation}deg) scale(${particle.scale});
-        font-size: ${particle.scale * 20}px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        pointer-events: none;
-        animation: fall 3s ease-in forwards;
-      `;
-      element.textContent = particle.emoji;
-      container.appendChild(element);
-    });
-    
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes fall {
-        to {
-          transform: translateY(100vh) rotate(720deg);
-          opacity: 0;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-    
-    return () => {
-      const container = document.getElementById('confetti-container');
-      if (container) {
-        container.innerHTML = '';
-      }
-      document.head.removeChild(style);
-    };
-  }, []);
-
-  return <div id="confetti-container" />;
 }

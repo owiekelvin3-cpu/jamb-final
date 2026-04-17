@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 const Login = ({ onToggleMode }) => {
   const [email, setEmail] = useState('');
@@ -8,7 +7,6 @@ const Login = ({ onToggleMode }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,8 +17,8 @@ const Login = ({ onToggleMode }) => {
       const result = await login(email, password);
       
       if (result.success) {
-        // Login successful, navigate to dashboard
-        navigate('/dashboard');
+        // Login successful - the AuthContext will handle state update automatically
+        // No need for manual navigation, the UI will update based on user state
       } else {
         setError(result.error);
       }

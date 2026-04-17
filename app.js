@@ -16,8 +16,10 @@ let mockMode = false;
 let mockAnswers = {};
 let mockSubmitted = false;
 let mockTimeLeft = 120 * 60;
+let currentMockQuestions = [];
+let mockTimerInterval = null;
 
-// DOM Elements
+// DOM Elements - Add null checks to prevent errors
 const elements = {
     screens: {
         home: document.getElementById('home-screen'),
@@ -31,6 +33,7 @@ const elements = {
         logout: document.getElementById('logout-btn'),
         toggleToSignup: document.getElementById('toggle-to-signup'),
         toggleToLogin: document.getElementById('toggle-to-login'),
+        subjectBack: document.getElementById('subject-back-btn'),
         topicBack: document.getElementById('topic-back-btn'),
         startPractice: document.getElementById('start-practice-btn'),
         startTest: document.getElementById('start-test-btn'),
@@ -59,9 +62,12 @@ const elements = {
         progressMessage: document.getElementById('progress-message'),
         subjectsCompleted: document.getElementById('subjects-completed'),
         mockExamAccess: document.getElementById('mock-exam-access'),
+        subjectTitle: document.getElementById('subject-title'),
+        subjectScreenIcon: document.getElementById('subject-icon'),
+        subjectScreenName: document.getElementById('subject-name'),
         topicTitle: document.getElementById('topic-title'),
-        subjectIcon: document.getElementById('topic-subject-icon'),
-        subjectName: document.getElementById('topic-subject-name'),
+        topicSubjectIcon: document.getElementById('topic-subject-icon'),
+        topicSubjectName: document.getElementById('topic-subject-name'),
         topicLevelInfo: document.getElementById('topic-level-info'),
         learnStep: document.getElementById('learn-step'),
         practiceStep: document.getElementById('practice-step'),
@@ -79,717 +85,217 @@ const elements = {
         resultScore: document.getElementById('result-score'),
         resultMessage: document.getElementById('result-message'),
         resultActions: document.getElementById('result-actions'),
-        nextTopicBtn: document.getElementById('next-topic-btn'),
-        retryTestBtn: document.getElementById('retry-test-btn'),
         mockTimer: document.getElementById('mock-timer'),
-        timeDisplay: document.getElementById('time-display'),
-        mockQuestionsContainer: document.getElementById('mock-questions-container'),
+        mockQuestions: document.getElementById('mock-questions-container'),
         mockActions: document.getElementById('mock-actions'),
         submitMockBtn: document.getElementById('submit-mock-btn'),
-        backToDashboardBtn: document.getElementById('mock-back-btn'),
-        keyPointsList: document.getElementById('key-points'),
-        examplesList: document.getElementById('examples'),
-        youtubeLink: document.getElementById('youtube-link'),
-        confettiContainer: document.getElementById('confetti-container')
+        timeDisplay: document.getElementById('time-display')
     }
 };
 
 // Screen Management
-function showScreen(screenId) {
-    Object.values(elements.screens).forEach(screen => {
-        screen.classList.add('hidden');
+function showScreen(screenName) {
+    Object.keys(elements.screens).forEach(screen => {
+        if (elements.screens[screen]) {
+            elements.screens[screen].classList.add('hidden');
+        }
     });
-    elements.screens[screenId].classList.remove('hidden');
-    currentScreen = screenId;
-}
-
-function hideAllScreens() {
-    Object.values(elements.screens).forEach(screen => {
-        screen.classList.add('hidden');
-    });
-}
-
-// Authentication
-function showLoginError(message) {
-    elements.loginError.textContent = message;
-    elements.loginError.style.display = 'block';
-}
-
-function showSignupSuccess(message) {
-    elements.signupSuccess.textContent = message;
-    elements.signupSuccess.style.display = 'block';
-}
-
-function showAuthForm(formType) {
-    elements.loginForm.classList.toggle('hidden', formType === 'login');
-    elements.signupForm.classList.toggle('hidden', formType === 'signup');
     
-    elements.authToggle.textContent = formType === 'login' ? "Don't have an account?" : "Already have an account?";
-    elements.toggleToSignup.classList.toggle('hidden', formType === 'login');
-    elements.toggleToLogin.classList.toggle('hidden', formType === 'signup');
+    if (elements.screens[screenName]) {
+        elements.screens[screenName].classList.remove('hidden');
+    }
+    
+    currentScreen = screenName;
 }
 
-// Data Management
+function showLoading(show) {
+    if (elements.displays.loadingScreen) {
+        if (show) {
+            elements.displays.loadingScreen.classList.remove('hidden');
+        } else {
+            elements.displays.loadingScreen.classList.add('hidden');
+        }
+    }
+}
+
+function hasCompletedMathematicsFoundation() {
+    const mathematics = window.Curriculum?.CURRICULUM?.mathematics;
+    const foundationTopics = mathematics?.levels?.[1]?.topics || [];
+
+    if (foundationTopics.length === 0) {
+        return false;
+    }
+
+    return foundationTopics.every(topic => userProgress?.mathematics?.[topic.id]?.completed);
+}
+
+function getSubjectIdByName(subjectName) {
+    return Object.keys(window.Curriculum.CURRICULUM).find(subjectId =>
+        window.Curriculum.CURRICULUM[subjectId].name === subjectName
+    ) || null;
+}
+
+function buildLatestScoresMap(testResults) {
+    const scores = {};
+
+    testResults.forEach(result => {
+        const subjectId = getSubjectIdByName(result.subject);
+        if (!subjectId) return;
+
+        const subject = window.Curriculum.CURRICULUM[subjectId];
+        for (const level of Object.values(subject.levels)) {
+            const topic = level.topics.find(item => item.title === result.topic);
+            if (!topic) continue;
+
+            if (!scores[subjectId]) {
+                scores[subjectId] = {};
+            }
+            scores[subjectId][topic.id] = result.score;
+            return;
+        }
+    });
+
+    return scores;
+}
+
+// Progress Management
 function loadProgress() {
-    const saved = localStorage.getItem('jambProgress');
-    if (saved) {
-        try {
-            userProgress = JSON.parse(saved);
-        } catch (error) {
+    if (!currentUser) return;
+    
+    Promise.all([
+        SupabaseClient.getProgress(currentUser.id),
+        SupabaseClient.getTestResults(currentUser.id)
+    ])
+        .then(([progressResult, testResultsResult]) => {
+            if (!progressResult.success) {
+                throw new Error(progressResult.error || 'Failed to load progress');
+            }
+
+            const latestScores = testResultsResult.success ? buildLatestScoresMap(testResultsResult.data) : {};
+            const progress = {};
+
+            progressResult.data.forEach(item => {
+                const separatorIndex = item.lesson_id.indexOf('_');
+                const subjectId = separatorIndex >= 0 ? item.lesson_id.slice(0, separatorIndex) : item.lesson_id;
+                const topicId = separatorIndex >= 0 ? item.lesson_id.slice(separatorIndex + 1) : '';
+
+                if (!progress[subjectId]) progress[subjectId] = {};
+                progress[subjectId][topicId] = {
+                    completed: item.completed,
+                    score: latestScores[subjectId]?.[topicId] || 0,
+                    status: item.completed ? 'passed' : 'in_progress'
+                };
+            });
+
+            userProgress = progress;
+            updateUI();
+        })
+        .catch(error => {
             console.error('Error loading progress:', error);
-            userProgress = {};
-        }
-    }
+        });
 }
 
-function saveProgress() {
-    try {
-        localStorage.setItem('jambProgress', JSON.stringify(userProgress));
-    } catch (error) {
-        console.error('Error saving progress:', error);
-    }
-}
-
-// Curriculum Data (simplified version for vanilla JS)
-const CURRICULUM = {
-    mathematics: {
-        id: "mathematics",
-        name: "Mathematics",
-        icon: "📐",
-        color: "#2563EB",
-        light: "#EFF6FF",
-        border: "#BFDBFE",
-        levels: {
-            1: {
-                name: "Foundation",
-                topics: [
-                    {
-                        id: "numbers",
-                        title: "Numbers and Counting",
-                        description: "Understanding whole numbers, counting, and basic operations",
-                        keyPoints: [
-                            "Counting numbers up to millions",
-                            "Place value and face value",
-                            "Basic addition and subtraction",
-                            "Multiplication as repeated addition"
-                        ],
-                        examples: [
-                            { q: "What is 345 + 127?", a: "345 + 127 = 472" },
-                            { q: "Divide 48 by 6", a: "48 ÷ 6 = 8" }
-                        ]
-                    },
-                    {
-                        id: "fractions",
-                        title: "Fractions and Decimals",
-                        description: "Understanding parts of whole numbers and decimal numbers",
-                        keyPoints: [
-                            "Proper and improper fractions",
-                            "Mixed numbers",
-                            "Decimal place value",
-                            "Converting fractions to decimals"
-                        ],
-                        examples: [
-                            { q: "Add 1/2 + 1/4", a: "1/2 + 1/4 = 3/4" },
-                            { q: "Convert 3/4 to decimal", a: "3/4 = 0.75" }
-                        ]
-                    }
-                ],
-            },
-            2: {
-                name: "Preparatory",
-                topics: [
-                    {
-                        id: "algebra",
-                        title: "Basic Algebra",
-                        description: "Introduction to variables and equations",
-                        keyPoints: [
-                            "Variables and expressions",
-                            "Simple equations (x + a = b)",
-                            "BODMAS order of operations",
-                            "Like terms and simplification"
-                        ],
-                        examples: [
-                            { q: "Solve: x + 5 = 12", a: "x = 7" },
-                            { q: "Simplify: 2x + 3x", a: "2x + 3x = 5x" }
-                        ],
-                    }
-                ],
-            },
-            3: {
-                name: "Core",
-                topics: [
-                    {
-                        id: "advanced-algebra",
-                        title: "Advanced Algebra",
-                        description: "Complex equations and mathematical relationships",
-                        keyPoints: [
-                            "Quadratic equations",
-                            "Simultaneous equations",
-                            "Inequalities",
-                            "Functions and graphs"
-                        ],
-                        examples: [
-                            { q: "Solve: x² - 5x + 6 = 0", a: "x = 2 or x = 3" },
-                            { q: "Factor: x² - 9", a: "(x - 3)(x + 3)" }
-                        ]
-                    }
-                ],
-            },
-            4: {
-                name: "JAMB Mastery",
-                topics: [
-                    {
-                        id: "functions",
-                        title: "Functions and Calculus Basics",
-                        description: "Introduction to functions and basic calculus concepts",
-                        keyPoints: [
-                            "Domain and range",
-                            "Function notation",
-                            "Limits and continuity",
-                            "Basic differentiation"
-                        ],
-                        examples: [
-                            { q: "If f(x) = 2x + 1, find f(3)", a: "f(3) = 2(3) + 1 = 7" },
-                            { q: "Find domain of f(x) = 1/(x-2)", a: "All real numbers except x = 2" }
-                        ]
-                    }
-                ],
-            }
-        ]
-    },
-    physics: {
-        id: "physics",
-        name: "Physics",
-        icon: "⚡",
-        color: "#059669",
-        light: "#ECFDF5",
-        border: "#A7F3D0",
-        levels: {
-            1: {
-                name: "Foundation",
-                topics: [
-                    {
-                        id: "basics",
-                        title: "What is Physics?",
-                        description: "Understanding the nature and scope of physics",
-                        keyPoints: [
-                            "SI units and measurements",
-                            "Physical quantities and units",
-                            "Scientific notation",
-                            "Accuracy and precision"
-                        ],
-                        examples: [
-                            { q: "Convert 2.5 km to meters", a: "2.5 km = 2500 m" },
-                            { q: "Write 0.0034 in scientific notation", a: "3.4 × 10⁻³" }
-                        ]
-                    }
-                ],
-            },
-            2: {
-                name: "Preparatory",
-                topics: [
-                    {
-                        id: "motion",
-                        title: "Motion and Forces",
-                        description: "Understanding how objects move and why",
-                        keyPoints: [
-                            "Speed, velocity, acceleration",
-                            "Newton's laws of motion",
-                            "Force and mass",
-                            "Friction and resistance"
-                        ],
-                        examples: [
-                            { q: "Car travels 120 km in 2 hours", a: "Average speed = 60 km/h" },
-                            { q: "Force = mass × acceleration", a: "F = ma" }
-                        ]
-                    }
-                ],
-            },
-            3: {
-                name: "Core",
-                topics: [
-                    {
-                        id: "energy",
-                        title: "Energy and Work",
-                        description: "Understanding energy forms and work calculations",
-                        keyPoints: [
-                            "Kinetic and potential energy",
-                            "Work-energy theorem",
-                            "Power calculations",
-                            "Energy conservation"
-                        ],
-                        examples: [
-                            { q: "KE = ½mv²", a: "Kinetic energy = ½ × mass × velocity²" },
-                            { q: "Power = Work/Time", a: "Power = energy transferred per unit time" }
-                        ]
-                    }
-                ],
-            },
-            4: {
-                name: "JAMB Mastery",
-                topics: [
-                    {
-                        id: "electricity",
-                        title: "Electricity and Magnetism",
-                        description: "Advanced electrical concepts and applications",
-                        keyPoints: [
-                            "Ohm's law and circuits",
-                            "Magnetic fields",
-                            "Electromagnetic induction",
-                            "AC and DC currents"
-                        ],
-                        examples: [
-                            { q: "V = IR (Ohm's law)", a: "Voltage = Current × Resistance" },
-                            { q: "Power = I²R", a: "Power = Current² × Resistance" }
-                        ]
-                    }
-                ],
-            }
-        ]
-    },
-    chemistry: {
-        id: "chemistry",
-        name: "Chemistry",
-        icon: "🧪",
-        color: "#DC2626",
-        light: "#FEF3C7",
-        border: "#FCA5A5",
-        levels: {
-            1: {
-                name: "Foundation",
-                topics: [
-                    {
-                        id: "matter",
-                        title: "States of Matter",
-                        description: "Understanding solids, liquids, and gases",
-                        keyPoints: [
-                            "Solid, liquid, gas properties",
-                            "Changes of state",
-                            "Particle arrangement",
-                            "Density and pressure"
-                        ],
-                        examples: [
-                            { q: "Ice → Water", a: "Melting (solid to liquid)" },
-                            { q: "Water → Steam", a: "Boiling (liquid to gas)" }
-                        ]
-                    }
-                ],
-            },
-            2: {
-                name: "Preparatory",
-                topics: [
-                    {
-                        id: "atomic",
-                        title: "Atomic Structure",
-                        description: "Understanding atoms, elements, and periodic table",
-                        keyPoints: [
-                            "Protons, neutrons, electrons",
-                            "Atomic number and mass",
-                            "Periodic table trends",
-                            "Isotopes and ions"
-                        ],
-                        examples: [
-                            { q: "Carbon: 6 protons, 6 neutrons, 6 electrons", a: "Carbon-12 is most common" },
-                            { q: "Period 2 has 2 elements", a: "Lithium (3) and Beryllium (4)" }
-                        ]
-                    }
-                ],
-            },
-            3: {
-                name: "Core",
-                topics: [
-                    {
-                        id: "bonding",
-                        title: "Chemical Bonding",
-                        description: "How atoms combine to form compounds",
-                        keyPoints: [
-                            "Ionic and covalent bonds",
-                            "Lewis structures",
-                            "Molecular geometry",
-                            "Polarity and intermolecular forces"
-                        ],
-                        examples: [
-                            { q: "NaCl: Na⁺ + Cl⁻", a: "Ionic bond through electron transfer" },
-                            { q: "H₂O: covalent sharing", a: "Water molecules share electrons" }
-                        ]
-                    }
-                ],
-            },
-            4: {
-                name: "JAMB Mastery",
-                topics: [
-                    {
-                        id: "equilibrium",
-                        title: "Chemical Equilibrium",
-                        description: "Balanced reactions and equilibrium concepts",
-                        keyPoints: [
-                            "Equilibrium constant (K)",
-                            "Le Chatelier's principle",
-                            "Acid-base equilibrium",
-                            "Solubility equilibrium"
-                        ],
-                        examples: [
-                            { q: "N₂ + 3H₂ ⇌ 2NH₃", a: "Haber process equilibrium" },
-                            { q: "K = [products]/[reactants]", a: "Equilibrium constant expression" }
-                        ]
-                    }
-                ],
-            }
-        ]
-    },
-    english: {
-        id: "english",
-        name: "English Language",
-        icon: "📝",
-        color: "#7C3AED",
-        light: "#EDE9FE",
-        border: "#BBF7D0",
-        levels: {
-            1: {
-                name: "Foundation",
-                topics: [
-                    {
-                        id: "alphabet",
-                        title: "Alphabet and Phonics",
-                        description: "Understanding letters, sounds, and basic reading",
-                        keyPoints: [
-                            "Letter recognition",
-                            "Phonetic sounds",
-                            "Sight words",
-                            "Basic pronunciation"
-                        ],
-                        examples: [
-                            { q: "A makes 'æ' sound in", a: "cat, hat, man" },
-                            { q: "Silent 'e' rule", a: "like in 'cake', 'make', 'take'" }
-                        ]
-                    }
-                ],
-            },
-            2: {
-                name: "Preparatory",
-                topics: [
-                    {
-                        id: "grammar",
-                        title: "Basic Grammar",
-                        description: "Understanding sentence structure and parts of speech",
-                        keyPoints: [
-                            "Nouns, verbs, adjectives",
-                            "Subject-verb agreement",
-                            "Tenses (past, present, future)",
-                            "Punctuation rules"
-                        ],
-                        examples: [
-                            { q: "The cat sits", a: "Subject: cat, Verb: sits" },
-                            { q: "I walked home", a: "Past tense of walk" }
-                        ]
-                    }
-                ],
-            },
-            3: {
-                name: "Core",
-                topics: [
-                    {
-                        id: "comprehension",
-                        title: "Reading Comprehension",
-                        description: "Understanding and analyzing written passages",
-                        keyPoints: [
-                            "Main idea identification",
-                            "Supporting details",
-                            "Making inferences",
-                            "Author's purpose"
-                        ],
-                        examples: [
-                            { q: "Main idea: 'The sun rises in the east'", a: "Earth's rotation causes apparent sunrise" },
-                            { q: "Inference: 'Dark clouds'", a: "Rain might be coming" }
-                        ]
-                    }
-                ],
-            },
-            4: {
-                name: "JAMB Mastery",
-                topics: [
-                    {
-                        id: "summary",
-                        title: "Summary Writing",
-                        description: "Condensing information and advanced analysis",
-                        keyPoints: [
-                            "Identifying main points",
-                            "Concise language",
-                            "Proper citation",
-                            "Avoiding plagiarism"
-                        ],
-                        examples: [
-                            { q: "Summary of 3 points in 1 sentence", a: "The study showed improved test scores, attendance, and engagement." },
-                            { q: "Cite sources properly", a: "According to Smith (2023), 75% of students..." }
-                        ]
-                    }
-                ],
-            }
-        ]
-    }
-};
-
-// Helper Functions
-function makeLessonId(subjectId, topicId) {
-    return `${subjectId}_${topicId}`;
-}
-
-function getSubjectProgress(subjectId) {
+function saveProgress(subjectId, topicId, completed, score = 0) {
+    if (!currentUser) return;
+    
+    const lessonId = `${subjectId}_${topicId}`;
+    
+    // Update local state
     if (!userProgress[subjectId]) {
-        return { completed: 0, total: 0, percentage: 0 };
+        userProgress[subjectId] = {};
     }
-    
-    const subject = CURRICULUM[subjectId];
-    const totalTopics = Object.values(subject.levels).reduce((sum, level) => sum + level.topics.length, 0);
-    const completedTopics = Object.values(userProgress[subjectId] || {}).filter(topic => topic.completed).length;
-    
-    return {
-        completed: completedTopics,
-        total: totalTopics,
-        percentage: Math.round((completedTopics / totalTopics) * 100)
+    userProgress[subjectId][topicId] = {
+        completed: completed,
+        score: score,
+        status: completed ? 'passed' : 'in_progress'
     };
+    
+    // Save to Supabase
+    SupabaseClient.saveProgress(currentUser.id, lessonId, completed)
+        .then(result => {
+            if (!result.success) {
+                console.error('Error saving progress:', result.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error saving progress:', error);
+        });
+    
+    updateUI();
 }
 
-function getOverallProgress() {
-    const subjects = Object.keys(CURRICULUM);
-    const totalSubjects = subjects.length;
-    const completedSubjects = subjects.filter(subjectId => {
-        const progress = getSubjectProgress(subjectId);
-        return progress.percentage === 100;
-    }).length;
-    
-    return Math.round((completedSubjects / totalSubjects) * 100);
-}
-
-function isTopicUnlocked(subjectId, levelId, topicId) {
-    // Level 1 topics are always unlocked
-    if (levelId === 1) return true;
-    
-    const subject = CURRICULUM[subjectId];
-    const level = subject.levels[levelId];
-    if (!level) return false;
-    
-    const topicIndex = level.topics.findIndex(topic => topic.id === topicId);
-    if (topicIndex === 0) return true; // First topic in level is always unlocked
-    
-    const previousTopic = level.topics[topicIndex - 1];
-    const previousTopicProgress = userProgress[subjectId]?.[previousTopic.id];
-    
-    return previousTopicProgress?.completed || false;
-}
-
-function canAccessMockExam() {
-    const subjects = Object.keys(CURRICULUM);
-    
-    for (const subjectId of subjects) {
-        const subject = CURRICULUM[subjectId];
-        const level4 = subject.levels[4];
-        if (!level4) return false;
-        
-        for (const topic of level4.topics) {
-            const topicProgress = userProgress[subjectId]?.[topic.id];
-            if (!topicProgress?.completed) return false;
-        }
+// UI Updates
+function updateUI() {
+    if (currentScreen === 'home') {
+        renderHomeScreen();
     }
-    
-    return true;
 }
 
-function formatTime(seconds) {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-}
-
-// Screen Rendering Functions
 function renderHomeScreen() {
-    const subjects = Object.keys(CURRICULUM);
-    const overallProgress = getOverallProgress();
-    const allSubjectsComplete = overallProgress === 100;
+    if (!elements.displays.subjectsGrid) return;
     
-    // Update progress displays
+    const subjects = Object.keys(window.Curriculum.CURRICULUM);
+    const mockExamAccess = elements.displays.mockExamAccess;
+    const mathFoundationUnlocked = hasCompletedMathematicsFoundation();
+    elements.displays.subjectsGrid.innerHTML = '';
+    
     subjects.forEach(subjectId => {
-        const progress = getSubjectProgress(subjectId);
-        const progressBar = elements.subjectsGrid.querySelector(`[data-subject="${subjectId}"] .progress-fill`);
-        const progressText = elements.subjectsGrid.querySelector(`[data-subject="${subjectId}"] .progress-text`);
+        const subject = window.Curriculum.CURRICULUM[subjectId];
+        const progress = window.Curriculum.getSubjectProgress(subjectId, userProgress);
+        const isUnlocked = subjectId === 'mathematics' || mathFoundationUnlocked;
         
-        if (progressBar && progressText) {
-            progressBar.style.width = `${progress.percentage}%`;
-            progressText.textContent = `${progress.percentage}%`;
-        }
+        const subjectCard = document.createElement('div');
+        subjectCard.className = `subject-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+        subjectCard.setAttribute('data-subject', subjectId);
+        
+        subjectCard.innerHTML = `
+            <div class="subject-icon" style="background: ${subject.light}; color: ${subject.color};">
+                ${subject.emoji}
+            </div>
+            <h3>${subject.name}</h3>
+            <div class="subject-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${progress.percentage}%"></div>
+                </div>
+                <span class="progress-text">${progress.percentage}%</span>
+            </div>
+            ${!isUnlocked ? '<div class="lock-overlay">Complete Mathematics Foundation level to unlock</div>' : ''}
+        `;
+        
+        subjectCard.addEventListener('click', () => handleSubjectClick(subjectId));
+        elements.displays.subjectsGrid.appendChild(subjectCard);
     });
+
+    if (mockExamAccess) {
+        elements.displays.subjectsGrid.appendChild(mockExamAccess);
+    }
     
     // Update overall progress
-    if (elements.overallProgress) {
-        elements.subjectsCompleted.textContent = `${allSubjectsComplete ? 4 : 0}/4`;
-        elements.progressMessage.textContent = allSubjectsComplete 
-            ? "🎉 Congratulations! You've completed all subjects. Mock exam unlocked!"
+    const completedSubjects = subjects.filter(subjectId =>
+        window.Curriculum.getSubjectProgress(subjectId, userProgress).percentage === 100
+    ).length;
+    const allSubjectsComplete = subjects.every(subjectId => 
+        window.Curriculum.getSubjectProgress(subjectId, userProgress).percentage === 100
+    );
+    
+    if (elements.displays.subjectsCompleted) {
+        elements.displays.subjectsCompleted.textContent = `${completedSubjects}/4`;
+    }
+    
+    if (elements.displays.progressMessage) {
+        elements.displays.progressMessage.textContent = allSubjectsComplete 
+            ? "Congratulations! You've completed all subjects. Mock exam unlocked!"
             : "Start with Mathematics Foundation level to begin your JAMB journey!";
     }
-}
-
-function renderSubjectScreen(subjectId) {
-    const subject = CURRICULUM[subjectId];
-    const subjectProgress = getSubjectProgress(subjectId);
     
-    // Update header
-    elements.topicTitle.textContent = subject.name;
-    elements.subjectIcon.textContent = subject.icon;
-    elements.topicLevelInfo.textContent = "Level 1: Foundation";
-    
-    // Render levels
-    const levelsContainer = elements.subjectsGrid.querySelector(`[data-subject="${subjectId}"] .subject-levels`);
-    levelsContainer.innerHTML = '';
-    
-    Object.values(subject.levels).forEach((level, levelId) => {
-        const isUnlocked = levelId === 1 || subjectProgress.percentage > 0;
-        const levelProgress = userProgress[subjectId]?.[`level_${levelId}`] || { completed: false };
-        
-        levelsContainer.innerHTML += `
-            <div class="level-card" data-level="${levelId}">
-                <h3>Level ${levelId}: ${level.name}</h3>
-                <p>${level.description}</p>
-                <div class="level-status" id="${subjectId}-level-${levelId}">${isUnlocked ? '🔓 Unlocked' : '🔒 Locked'}</div>
-            </div>
-        `;
-    });
-}
-
-function renderTopicScreen(subjectId, levelId, topicId) {
-    const subject = CURRICULUM[subjectId];
-    const level = subject.levels[levelId];
-    const topic = level.topics.find(t => t.id === topicId);
-    const nextTopic = getNextTopic(subjectId, levelId, topicId, progress);
-    
-    if (!topic) return;
-    
-    // Update header
-    elements.topicTitle.textContent = topic.title;
-    elements.subjectIcon.textContent = subject.icon;
-    elements.topicLevelInfo.textContent = `Level ${levelId}: ${level.name}`;
-    
-    // Render step indicators
-    const learnDot = elements.learnStep.querySelector('#learn-dot');
-    const learnLine = elements.learnStep.querySelector('#learn-line');
-    const practiceDot = elements.learnStep.querySelector('#practice-dot');
-    const practiceLine = elements.learnStep.querySelector('#practice-line');
-    const testDot = elements.learnStep.querySelector('#test-dot');
-    const testLine = elements.learnStep.querySelector('#test-line');
-    
-    learnDot.classList.toggle('active', topicStep === 'learn');
-    learnLine.classList.toggle('active', topicStep === 'learn');
-    practiceDot.classList.toggle('active', topicStep === 'practice');
-    practiceLine.classList.toggle('active', topicStep === 'practice');
-    testDot.classList.toggle('active', topicStep === 'test');
-    testLine.classList.toggle('active', topicStep === 'test');
-    
-    // Render content based on step
-    const learnContent = elements.learnContent;
-    const practiceContent = elements.practiceContent;
-    const testContent = elements.testContent;
-    
-    if (topicStep === 'learn') {
-        learnContent.style.display = 'block';
-        practiceContent.style.display = 'none';
-        testContent.style.display = 'none';
-        
-        // Render key points
-        if (elements.keyPointsList) {
-            elements.keyPointsList.innerHTML = topic.learn.keyPoints.map(point => 
-                `<li>${point}</li>`
-            ).join('');
-        }
-        
-        // Render examples
-        if (elements.examplesList && topic.learn.examples) {
-            elements.examplesList.innerHTML = topic.learn.examples.map(example => 
-                `<div>
-                    <p><strong>Q: ${example.q}</strong></p>
-                    <p><strong>→ ${example.a}</strong></p>
-                </div>`
-            ).join('');
-        }
-        
-        // Render YouTube link
-        if (elements.youtubeLink) {
-            elements.youtubeLink.href = `https://www.youtube.com/results?search_query=JAMB+${subject.name}+${topic.title}`;
-        }
-        
-        elements.startPracticeBtn.style.display = 'block';
-    } else if (topicStep === 'practice') {
-        learnContent.style.display = 'none';
-        practiceContent.style.display = 'block';
-        testContent.style.display = 'none';
-        
-        elements.startTestBtn.style.display = 'block';
-    } else if (topicStep === 'test') {
-        learnContent.style.display = 'none';
-        practiceContent.style.display = 'none';
-        testContent.style.display = 'block';
-        
-        elements.startTestBtn.style.display = 'none';
-        elements.submitTestBtn.style.display = 'block';
+    if (elements.displays.mockExamAccess) {
+        elements.displays.mockExamAccess.style.display = allSubjectsComplete ? 'block' : 'none';
     }
-}
-
-function renderTestResults(score, passed, subjectId, levelId, topicId, nextTopic) {
-    elements.resultIcon.textContent = passed ? '🏆' : '📚';
-    elements.resultTitle.textContent = passed ? 'Test Passed! 🎉' : 'Not Yet — Keep Going!';
-    elements.resultScore.textContent = `${score}%`;
-    elements.resultMessage.textContent = passed 
-        ? `Excellent work! You've mastered ${topic.title}. Next topic unlocked! 🚀`
-        : `You scored ${score}%. Review the material and try again. 💪`;
-    
-    elements.nextTopicBtn.style.display = passed && nextTopic ? 'block' : 'none';
-    elements.retryTestBtn.style.display = !passed ? 'block' : 'none';
-}
-
-function renderMockExam() {
-    elements.mockTimer.textContent = formatTime(mockTimeLeft);
-    elements.mockQuestionsContainer.innerHTML = '';
-    
-    // Generate mock questions
-    const allQuestions = [];
-    const subjects = Object.keys(CURRICULUM);
-    
-    subjects.forEach(subjectId => {
-        const subject = CURRICULUM[subjectId];
-        const level4 = subject.levels[4];
-        
-        level4.topics.forEach(topic => {
-            const questions = topic.test.map(q => ({
-                ...q,
-                subject: subject.name,
-                topic: topic.title,
-                id: Math.random().toString(36).substr(2, 9)
-            }));
-            
-            allQuestions.push(...questions);
-        });
-    });
-    
-    // Shuffle and select questions
-    const shuffled = allQuestions.sort(() => Math.random() - 0.5);
-    const selectedQuestions = shuffled.slice(0, 60 + Math.floor(Math.random() * 41));
-    
-    // Render questions
-    elements.mockQuestionsContainer.innerHTML = selectedQuestions.map((q, index) => `
-        <div class="question-option" data-question-id="${q.id}">
-            <p><strong>Question ${index + 1}</strong></p>
-            <p>${q.q}</p>
-            <div class="answer-options">
-                ${q.options.map((option, optIndex) => `
-                    <div class="answer-option" data-option="${optIndex}">
-                        <span>A${String.fromCharCode(65 + optIndex)}.</span> ${option}
-                    </div>
-                `).join('')}
-            </div>
-    `).join('');
 }
 
 // Event Handlers
 function handleSubjectClick(subjectId) {
-    const isUnlocked = subjectId === 'mathematics' || getSubjectProgress(subjectId).percentage > 0;
+    const isUnlocked = subjectId === 'mathematics' || hasCompletedMathematicsFoundation();
     
     if (!isUnlocked) {
         alert('Complete Mathematics Foundation level to unlock this subject!');
@@ -798,258 +304,693 @@ function handleSubjectClick(subjectId) {
     
     selectedSubject = subjectId;
     selectedLevel = 1;
-    selectedTopic = null;
-    topicStep = 'learn';
+    renderSubjectScreen();
     showScreen('subject');
 }
 
-function handleTopicClick(subjectId, levelId, topicId) {
-    const isUnlocked = isTopicUnlocked(subjectId, levelId, topicId);
+function renderSubjectScreen() {
+    const subject = window.Curriculum.CURRICULUM[selectedSubject];
+    if (!subject) return;
     
-    if (!isUnlocked) {
-        alert('Complete previous topic to unlock this one!');
-        return;
+    // Update subject header
+    if (elements.displays.subjectTitle) {
+        elements.displays.subjectTitle.textContent = subject.name;
     }
     
-    selectedSubject = subjectId;
-    selectedLevel = levelId;
+    if (elements.displays.subjectScreenIcon) {
+        elements.displays.subjectScreenIcon.textContent = subject.emoji;
+    }
+    
+    if (elements.displays.subjectScreenName) {
+        elements.displays.subjectScreenName.textContent = subject.name;
+    }
+    
+    // Render levels and topics
+    const levelsContainer = document.querySelector('.levels-container');
+    if (levelsContainer) {
+        levelsContainer.innerHTML = '';
+        
+        Object.values(subject.levels).forEach(level => {
+            const levelElement = document.createElement('div');
+            levelElement.className = 'level-section';
+            
+            levelElement.innerHTML = `
+                <h3>Level ${level.id}: ${level.name}</h3>
+                <div class="topics-grid">
+                    ${level.topics.map(topic => {
+                        const progress = userProgress[selectedSubject]?.[topic.id];
+                        const isCompleted = progress?.completed || false;
+                        const isUnlocked = window.Curriculum.isTopicUnlocked(selectedSubject, level.id, topic.id, userProgress);
+                        
+                        return `
+                            <div class="topic-card ${isCompleted ? 'completed' : ''} ${!isUnlocked ? 'locked' : ''}" 
+                                 data-topic="${topic.id}" data-level="${level.id}">
+                                <div class="topic-status">
+                                    ${isCompleted ? 'Completed' : isUnlocked ? 'Available' : 'Locked'}
+                                </div>
+                                <h4>${topic.title}</h4>
+                                ${isCompleted ? `<div class="topic-score">Score: ${progress.score || 0}%</div>` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            
+            levelsContainer.appendChild(levelElement);
+        });
+        
+        // Add click handlers for topics
+        levelsContainer.onclick = (e) => {
+            const topicCard = e.target.closest('.topic-card');
+            if (topicCard && !topicCard.classList.contains('locked')) {
+                const topicId = topicCard.getAttribute('data-topic');
+                const levelId = parseInt(topicCard.getAttribute('data-level'));
+                handleTopicClick(topicId, levelId);
+            }
+        };
+    }
+}
+
+function handleTopicClick(topicId, levelId) {
     selectedTopic = topicId;
+    selectedLevel = levelId;
     topicStep = 'learn';
-    showScreen('topic');
-}
-
-function handleBackToSubject() {
-    selectedSubject = null;
-    selectedLevel = null;
-    selectedTopic = null;
-    topicStep = 'learn';
-    showScreen('home');
-}
-
-function handleStartPractice() {
-    topicStep = 'practice';
-    showScreen('topic');
-}
-
-function handleStartTest() {
-    topicStep = 'test';
-    showScreen('topic');
-}
-
-function handlePracticeAnswer(questionId, optionIndex) {
-    practiceAnswers[questionId] = optionIndex;
+    practiceAnswers = {};
+    testAnswers = {};
+    showFeedback = {};
+    testSubmitted = false;
     
-    // Update UI to show selected answer
-    const practiceQuestions = elements.practiceQuestions.querySelectorAll('.question-option');
-    practiceQuestions.forEach((questionEl, index) => {
-        if (index === questionId) {
-            questionEl.classList.add('selected');
-            questionEl.style.borderColor = '#2563eb';
-            questionEl.style.background = '#2563eb';
-            questionEl.style.fontWeight = '600';
-        } else {
-            questionEl.classList.remove('selected');
-            questionEl.style.borderColor = '#e2e8f0';
-            questionEl.style.background = '#F8FAFC';
-            questionEl.style.fontWeight = '400';
-        }
-    });
+    renderTopicScreen();
+    showScreen('topic');
 }
 
-function handleTestAnswer(questionId, optionIndex) {
-    testAnswers[questionId] = optionIndex;
-}
-
-function handleTestSubmit() {
-    const questions = elements.testQuestions.querySelectorAll('.question-option');
-    let correct = 0;
+function renderTopicScreen() {
+    const subject = window.Curriculum.CURRICULUM[selectedSubject];
+    const level = subject.levels[selectedLevel];
+    const topic = level.topics.find(t => t.id === selectedTopic);
     
-    questions.forEach((questionEl, index) => {
-        const questionId = questionEl.getAttribute('data-question-id');
-        const selectedAnswer = testAnswers[questionId];
+    if (!topic) return;
+    
+    // Update topic header
+    if (elements.displays.topicTitle) {
+        elements.displays.topicTitle.textContent = topic.title;
+    }
+
+    if (elements.displays.topicSubjectIcon) {
+        elements.displays.topicSubjectIcon.textContent = subject.emoji;
+    }
+
+    if (elements.displays.topicSubjectName) {
+        elements.displays.topicSubjectName.textContent = subject.name;
+    }
+    
+    if (elements.displays.topicLevelInfo) {
+        elements.displays.topicLevelInfo.textContent = `Level ${selectedLevel}: ${level.name}`;
+    }
+    
+    // Show learn step by default
+    showTopicStep('learn');
+}
+
+function showTopicStep(step) {
+    // Hide all steps
+    if (elements.displays.learnStep) elements.displays.learnStep.classList.add('hidden');
+    if (elements.displays.practiceStep) elements.displays.practiceStep.classList.add('hidden');
+    if (elements.displays.testStep) elements.displays.testStep.classList.add('hidden');
+    
+    // Show selected step
+    if (elements.displays[step + 'Step']) {
+        elements.displays[step + 'Step'].classList.remove('hidden');
+    }
+    
+    topicStep = step;
+    
+    if (step === 'learn') {
+        renderLearnContent();
+    } else if (step === 'practice') {
+        renderPracticeContent();
+    } else if (step === 'test') {
+        renderTestContent();
+    }
+}
+
+function renderLearnContent() {
+    const subject = window.Curriculum.CURRICULUM[selectedSubject];
+    const level = subject.levels[selectedLevel];
+    const topic = level.topics.find(t => t.id === selectedTopic);
+    
+    if (!topic || !elements.displays.learnContent) return;
+    
+    elements.displays.learnContent.innerHTML = `
+        <div class="learn-section">
+            <div class="learn-content">
+                <p>${topic.learn.content}</p>
+                ${topic.learn.video ? `
+                    <div class="video-container">
+                        <iframe src="${topic.learn.video}" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                ` : ''}
+            </div>
+            <div class="learn-actions">
+                <button class="btn-primary" onclick="showTopicStep('practice')">
+                    Start Practice
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function renderPracticeContent() {
+    const subject = window.Curriculum.CURRICULUM[selectedSubject];
+    const level = subject.levels[selectedLevel];
+    const topic = level.topics.find(t => t.id === selectedTopic);
+    
+    if (!topic || !elements.displays.practiceQuestions) return;
+    
+    elements.displays.practiceQuestions.innerHTML = '';
+    
+    topic.practice.forEach((question, index) => {
+        const questionElement = document.createElement('div');
+        questionElement.className = 'practice-question';
         
-        if (selectedAnswer === question.options.findIndex(opt => opt === selectedAnswer)) {
-            correct++;
-            questionEl.classList.add('correct');
-            questionEl.style.background = '#D1FAE5';
-            questionEl.style.borderColor = '#059669';
-            questionEl.style.color = '#059669';
-        } else {
-            questionEl.classList.add('incorrect');
-            questionEl.style.background = '#FEE2E2';
-            questionEl.style.borderColor = '#EF4444';
-            questionEl.style.color = '#EF4444';
-        }
+        questionElement.innerHTML = `
+            <h4>Question ${index + 1}</h4>
+            <p>${question.question}</p>
+            <div class="options">
+                ${question.options.map((option, optionIndex) => `
+                    <button class="option-btn ${practiceAnswers[index] === optionIndex ? 'selected' : ''}" 
+                            onclick="handlePracticeAnswer(${index}, ${optionIndex})">
+                        ${option}
+                    </button>
+                `).join('')}
+            </div>
+            ${showFeedback[index] ? `
+                <div class="feedback">
+                    <p><strong>Explanation:</strong> ${question.explanation}</p>
+                </div>
+            ` : ''}
+        `;
+        
+        elements.displays.practiceQuestions.appendChild(questionElement);
+    });
+}
+
+function handlePracticeAnswer(questionIndex, answerIndex) {
+    practiceAnswers[questionIndex] = answerIndex;
+    showFeedback[questionIndex] = true;
+    renderPracticeContent();
+}
+
+function renderTestContent() {
+    const subject = window.Curriculum.CURRICULUM[selectedSubject];
+    const level = subject.levels[selectedLevel];
+    const topic = level.topics.find(t => t.id === selectedTopic);
+    
+    if (!topic || !elements.displays.testQuestions) return;
+    
+    elements.displays.testQuestions.innerHTML = '';
+    
+    topic.test.forEach((question, index) => {
+        const questionElement = document.createElement('div');
+        questionElement.className = 'test-question';
+        
+        questionElement.innerHTML = `
+            <h4>Question ${index + 1}</h4>
+            <p>${question.q}</p>
+            <div class="options">
+                ${question.options.map((option, optionIndex) => `
+                    <button class="option-btn ${testAnswers[index] === optionIndex ? 'selected' : ''}" 
+                            onclick="handleTestAnswer(${index}, ${optionIndex})">
+                        ${option}
+                    </button>
+                `).join('')}
+            </div>
+        `;
+        
+        elements.displays.testQuestions.appendChild(questionElement);
+    });
+}
+
+function handleTestAnswer(questionIndex, answerIndex) {
+    testAnswers[questionIndex] = answerIndex;
+    renderTestContent();
+}
+
+async function handleTestSubmit() {
+    const subject = window.Curriculum.CURRICULUM[selectedSubject];
+    const level = subject.levels[selectedLevel];
+    const topic = level.topics.find(t => t.id === selectedTopic);
+    
+    if (!topic || !currentUser) return;
+    
+    // Calculate score
+    let correct = 0;
+    topic.test.forEach((question, index) => {
+        if (testAnswers[index] === question.answer) correct++;
     });
     
-    const score = Math.round((correct / questions.length) * 100);
+    const score = Math.round((correct / topic.test.length) * 100);
     const passed = score >= 70;
     
-    // Hide test questions and show results
-    elements.testQuestions.style.display = 'none';
-    elements.testContent.style.display = 'block';
-    elements.testActions.style.display = 'block';
+    // Save progress and test result
+    saveProgress(selectedSubject, selectedTopic, passed, score);
     
-    renderTestResults(score, passed, selectedSubject, selectedLevel, selectedTopic, getNextTopic(selectedSubject, selectedLevel, selectedTopic, userProgress));
+    await SupabaseClient.saveTestResult(
+        currentUser.id, 
+        subject.name, 
+        topic.title, 
+        score, 
+        passed
+    );
+    
+    testSubmitted = true;
+    renderTestResult(passed, score);
 }
 
-function handleMockSubmit() {
-    const questions = elements.mockQuestionsContainer.querySelectorAll('.question-option');
-    let correct = 0;
+function renderTestResult(passed, score) {
+    if (!elements.displays.testContent) return;
     
-    questions.forEach((questionEl, index) => {
-        const questionId = questionEl.getAttribute('data-question-id');
-        const selectedAnswer = mockAnswers[questionId];
-        
-        if (selectedAnswer === questionEl.getAttribute('data-option')) {
-            correct++;
-        }
-    });
-    
-    const score = Math.round((correct / questions.length) * 100);
-    const passed = score >= 70;
-    
-    // Hide mock questions and show results
-    elements.mockQuestionsContainer.style.display = 'none';
-    elements.mockActions.style.display = 'block';
-    
-    alert(`Mock Exam Complete! Score: ${score}% (${passed ? 'PASSED' : 'FAILED'})`);
-    
-    // Return to dashboard after delay
-    setTimeout(() => {
-        mockSubmitted = true;
-        mockMode = false;
-        showScreen('home');
-    }, 2000);
+    elements.displays.testContent.innerHTML = `
+        <div class="test-result">
+            <div class="result-icon">
+                ${passed ? '🏆' : '📘'}
+            </div>
+            <h2>${passed ? 'Test Passed!' : 'Not Yet - Keep Going!'}</h2>
+            <div class="result-score">${score}%</div>
+            <p class="result-message">
+                ${passed 
+                    ? 'Excellent work! You\'ve mastered this topic. Next topic unlocked!'
+                    : `You scored ${score}%. Review the material and try again.`
+                }
+            </p>
+            <div class="result-actions">
+                ${!passed ? `
+                    <button class="btn-secondary" onclick="showTopicStep('learn')">Review Material</button>
+                    <button class="btn-primary" onclick="retryTest()">Retry Test</button>
+                ` : ''}
+                ${passed ? `
+                    <button class="btn-primary" onclick="goToNextTopic()">Next Topic</button>
+                ` : ''}
+            </div>
+        </div>
+    `;
 }
 
-function handleStartMock() {
-    mockMode = true;
-    mockTimeLeft = 120 * 60;
-    mockSubmitted = false;
-    mockAnswers = {};
-    showScreen('mock');
+function retryTest() {
+    testAnswers = {};
+    showFeedback = {};
+    testSubmitted = false;
+    showTopicStep('test');
 }
 
-function handleMockAnswer(questionId, optionIndex) {
-    mockAnswers[questionId] = optionIndex;
-    
-    // Update UI to show selected answer
-    const questions = elements.mockQuestionsContainer.querySelectorAll('.question-option');
-    questions.forEach((questionEl, index) => {
-        if (index === questionId) {
-            questionEl.classList.add('selected');
-            questionEl.style.borderColor = '#10b981';
-            questionEl.style.background = '#D1FAE5';
-        } else {
-            questionEl.classList.remove('selected');
-            questionEl.style.borderColor = '#e2e8f0';
-            questionEl.style.background = '#F8FAFC';
-        }
-    });
-}
-
-function handleBackToDashboard() {
-    mockMode = false;
-    showScreen('home');
+function goToNextTopic() {
+    const nextTopic = window.Curriculum.getNextTopic(selectedSubject, selectedLevel, selectedTopic, userProgress);
+    if (nextTopic) {
+        handleTopicClick(nextTopic.id, selectedLevel);
+    } else {
+        // Go back to subject screen
+        showScreen('subject');
+    }
 }
 
 // Authentication
-function handleLogin(email, password) {
-    // Simulate login (in real app, this would call Supabase)
-    currentUser = { id: 'user123', email: email, name: 'John Doe' };
-    showScreen('home');
-    loadProgress();
+async function handleLogin(email, password) {
+    showLoading(true);
+    
+    try {
+        const result = await SupabaseClient.signIn(email, password);
+        
+        if (result.success) {
+            currentUser = result.data.user;
+            showScreen('home');
+            loadProgress();
+        } else {
+            showLoginError(result.error);
+        }
+    } catch (error) {
+        showLoginError('Login failed. Please try again.');
+    } finally {
+        showLoading(false);
+    }
 }
 
-function handleSignup(name, email, password, confirmPassword) {
+async function handleSignup(name, email, password, confirmPassword) {
     if (password !== confirmPassword) {
-        showLoginError('Passwords do not match');
+        showSignupError('Passwords do not match');
         return;
     }
     
     if (password.length < 6) {
-        showLoginError('Password must be at least 6 characters');
+        showSignupError('Password must be at least 6 characters');
         return;
     }
     
-    // Simulate signup (in real app, this would call Supabase)
-    currentUser = { id: 'user123', email: email, name: name };
-    showScreen('home');
-    loadProgress();
+    showLoading(true);
+    
+    try {
+        const result = await SupabaseClient.signUp(email, password, name);
+        
+        if (result.success) {
+            showSignupSuccess('Account created successfully! Please check your email to verify your account.');
+            // Clear form
+            document.getElementById('signup-name').value = '';
+            document.getElementById('signup-email').value = '';
+            document.getElementById('signup-password').value = '';
+            document.getElementById('signup-confirm-password').value = '';
+            // Switch to login form
+            toggleToLogin();
+        } else {
+            showSignupError(result.error);
+        }
+    } catch (error) {
+        showSignupError('Registration failed. Please try again.');
+    } finally {
+        showLoading(false);
+    }
 }
 
-function handleLogout() {
-    currentUser = null;
+async function handleLogout() {
+    try {
+        await SupabaseClient.signOut();
+        currentUser = null;
+        userProgress = {};
+        showScreen('auth');
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+}
+
+function showLoginError(message) {
+    if (elements.displays.signupError) {
+        elements.displays.signupError.style.display = 'none';
+    }
+    if (elements.displays.loginError) {
+        elements.displays.loginError.textContent = message;
+        elements.displays.loginError.style.display = 'block';
+    }
+}
+
+function showSignupError(message) {
+    if (elements.displays.loginError) {
+        elements.displays.loginError.style.display = 'none';
+    }
+    if (elements.displays.signupError) {
+        elements.displays.signupError.textContent = message;
+        elements.displays.signupError.style.display = 'block';
+    }
+}
+
+function showSignupSuccess(message) {
+    if (elements.displays.signupSuccess) {
+        elements.displays.signupSuccess.textContent = message;
+        elements.displays.signupSuccess.style.display = 'block';
+    }
+}
+
+function toggleToSignup() {
+    if (elements.displays.loginForm) elements.displays.loginForm.classList.add('hidden');
+    if (elements.displays.signupForm) elements.displays.signupForm.classList.remove('hidden');
+    if (elements.displays.loginError) elements.displays.loginError.style.display = 'none';
+    if (elements.displays.signupError) elements.displays.signupError.style.display = 'none';
+    if (elements.displays.signupSuccess) elements.displays.signupSuccess.style.display = 'none';
+    if (elements.displays.authToggle) elements.displays.authToggle.textContent = 'Already have an account?';
+    if (elements.displays.toggleToSignup) elements.displays.toggleToSignup.classList.add('hidden');
+    if (elements.displays.toggleToLogin) elements.displays.toggleToLogin.classList.remove('hidden');
+}
+
+function toggleToLogin() {
+    if (elements.displays.signupForm) elements.displays.signupForm.classList.add('hidden');
+    if (elements.displays.loginForm) elements.displays.loginForm.classList.remove('hidden');
+    if (elements.displays.loginError) elements.displays.loginError.style.display = 'none';
+    if (elements.displays.signupError) elements.displays.signupError.style.display = 'none';
+    if (elements.displays.signupSuccess) elements.displays.signupSuccess.style.display = 'none';
+    if (elements.displays.authToggle) elements.displays.authToggle.textContent = "Don't have an account?";
+    if (elements.displays.toggleToLogin) elements.displays.toggleToLogin.classList.add('hidden');
+    if (elements.displays.toggleToSignup) elements.displays.toggleToSignup.classList.remove('hidden');
+}
+
+// Mock Exam Functions
+function startMockExam() {
+    mockMode = true;
+    mockAnswers = {};
+    mockSubmitted = false;
+    mockTimeLeft = 120 * 60; // 2 hours
+    
+    generateMockExam();
+    updateMockTimerDisplay();
+    startMockTimer();
+    showScreen('mock');
+}
+
+function generateMockExam() {
+    const allQuestions = [];
+    const subjects = Object.keys(window.Curriculum.CURRICULUM);
+    
+    subjects.forEach(subjectId => {
+        const subject = window.Curriculum.CURRICULUM[subjectId];
+        const level4 = subject.levels[4];
+        
+        level4.topics.forEach(topic => {
+            topic.test.forEach(question => {
+                allQuestions.push({
+                    ...question,
+                    subject: subject.name,
+                    topic: topic.title,
+                    id: Math.random().toString(36).substr(2, 9)
+                });
+            });
+        });
+    });
+    
+    // Shuffle and select 60-100 questions
+    const shuffled = allQuestions.sort(() => Math.random() - 0.5);
+    currentMockQuestions = shuffled.slice(0, 60 + Math.floor(Math.random() * 41));
+    
+    renderMockExam();
+}
+
+function renderMockExam() {
+    if (!elements.displays.mockQuestions) return;
+    
+    elements.displays.mockQuestions.innerHTML = '';
+    
+    currentMockQuestions.forEach((question, index) => {
+        const questionElement = document.createElement('div');
+        questionElement.className = 'mock-question';
+        
+        questionElement.innerHTML = `
+            <div class="question-header">
+                <span class="question-number">Q${index + 1}</span>
+                <span class="question-subject">${question.subject}</span>
+            </div>
+            <p class="question-text">${question.q}</p>
+            <div class="question-options">
+                ${question.options.map((option, optionIndex) => `
+                    <button class="option-btn ${mockAnswers[question.id] === optionIndex ? 'selected' : ''}" 
+                            onclick="handleMockAnswer('${question.id}', ${optionIndex})">
+                        ${option}
+                    </button>
+                `).join('')}
+            </div>
+        `;
+        
+        elements.displays.mockQuestions.appendChild(questionElement);
+    });
+}
+
+function handleMockAnswer(questionId, answerIndex) {
+    mockAnswers[questionId] = answerIndex;
+    renderMockExam();
+}
+
+async function submitMockExam() {
+    if (!currentUser || currentMockQuestions.length === 0) return;
+    
+    // Calculate score
+    let correct = 0;
+    
+    currentMockQuestions.forEach(question => {
+        const selectedAnswer = mockAnswers[question.id];
+        if (selectedAnswer === question.answer) correct++;
+    });
+    
+    const score = Math.round((correct / currentMockQuestions.length) * 100);
+    const passed = score >= 70;
+    
+    // Save mock exam result
+    await SupabaseClient.saveTestResult(currentUser.id, 'Mock Exam', 'Comprehensive', score, passed);
+    
+    mockSubmitted = true;
+    renderMockResult(passed, score);
+}
+
+function renderMockResult(passed, score) {
+    if (!elements.displays.mockQuestions) return;
+    
+    elements.displays.mockQuestions.innerHTML = `
+        <div class="mock-result">
+            <div class="result-icon">
+                ${passed ? '🏆' : '📘'}
+            </div>
+            <h2>Mock Exam ${passed ? 'Passed!' : 'Not Passed'}</h2>
+            <div class="result-score">${score}%</div>
+            <p class="result-message">
+                ${passed 
+                    ? 'Congratulations! You\'ve passed the mock exam with excellent performance.'
+                    : 'Keep practicing! You\'re making good progress. Review the material and try again.'
+                }
+            </p>
+            <div class="result-actions">
+                <button class="btn-primary" onclick="handleBackToDashboard()">Back to Dashboard</button>
+            </div>
+        </div>
+    `;
+}
+
+function handleBackToDashboard() {
+    mockMode = false;
+    currentMockQuestions = [];
+    if (mockTimerInterval) {
+        clearInterval(mockTimerInterval);
+        mockTimerInterval = null;
+    }
     showScreen('home');
+}
+
+// Timer functions for mock exam
+function startMockTimer() {
+    if (mockTimerInterval) {
+        clearInterval(mockTimerInterval);
+    }
+
+    mockTimerInterval = setInterval(() => {
+        if (mockTimeLeft > 0 && !mockSubmitted) {
+            mockTimeLeft--;
+            updateMockTimerDisplay();
+        } else {
+            clearInterval(mockTimerInterval);
+            mockTimerInterval = null;
+            if (!mockSubmitted) {
+                submitMockExam();
+            }
+        }
+    }, 1000);
+}
+
+function updateMockTimerDisplay() {
+    if (elements.displays.timeDisplay) {
+        const minutes = Math.floor(mockTimeLeft / 60);
+        const seconds = mockTimeLeft % 60;
+        elements.displays.timeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
 }
 
 // Initialize App
 function initApp() {
-    loadProgress();
-    renderHomeScreen();
+    console.log('Initializing JAMB Success app...');
+    
+    // Hide loading screen immediately
+    showLoading(false);
+    
+    // Show auth screen by default as fallback
+    showScreen('auth');
+    
+    // Check if user is already logged in
+    if (window.SupabaseClient) {
+        SupabaseClient.getCurrentUser()
+            .then(result => {
+                console.log('User check result:', result);
+                if (result.success && result.user) {
+                    currentUser = result.user;
+                    loadProgress();
+                    showScreen('home');
+                } else {
+                    showScreen('auth');
+                }
+            })
+            .catch(error => {
+                console.error('Error checking user session:', error);
+                showScreen('auth');
+            });
+    } else {
+        console.error('SupabaseClient not loaded');
+        showScreen('auth');
+    }
     
     // Set up event listeners
-    elements.subjectsGrid.addEventListener('click', (e) => {
-        const subjectCard = e.target.closest('[data-subject]');
-        if (subjectCard) {
-            const subjectId = subjectCard.getAttribute('data-subject');
-            handleSubjectClick(subjectId);
-        }
-    });
-    
-    elements.userMenuBtn.addEventListener('click', () => {
-        if (currentUser) {
-            alert('User profile feature coming soon!');
-        } else {
-            showScreen('auth');
-        }
-    });
-    
-    elements.logoutBtn.addEventListener('click', handleLogout);
-    
-    elements.toggleToSignup.addEventListener('click', () => showAuthForm('signup'));
-    elements.toggleToLogin.addEventListener('click', () => showAuthForm('login'));
-    
-    // Auth forms
-    elements.loginForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const email = elements.loginEmail.value;
-        const password = elements.loginPassword.value;
-        handleLogin(email, password);
-    });
-    
-    elements.signupForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = elements.signupName.value;
-        const email = elements.signupEmail.value;
-        const password = elements.signupPassword.value;
-        const confirmPassword = elements.signupConfirm.value;
-        handleSignup(name, email, password, confirmPassword);
-    });
-    
-    // Topic navigation
-    elements.topicBackBtn.addEventListener('click', handleBackToSubject);
-    elements.startPracticeBtn.addEventListener('click', handleStartPractice);
-    elements.startTestBtn.addEventListener('click', handleStartTest);
-    elements.backToPracticeBtn.addEventListener('click', () => {
-        topicStep = 'practice';
-        showScreen('topic');
-    });
-    elements.submitTestBtn.addEventListener('click', handleTestSubmit);
-    
-    // Mock exam
-    elements.mockExamAccess.addEventListener('click', () => {
-        if (canAccessMockExam()) {
-            handleStartMock();
-        } else {
-            alert('Complete all Level 4 topics to unlock Mock Exam!');
-        }
-    });
-    
-    elements.submitMockBtn.addEventListener('click', handleMockSubmit);
-    elements.backToDashboardBtn.addEventListener('click', handleBackToDashboard);
+    setupEventListeners();
 }
 
-// Start the application
+function setupEventListeners() {
+    // Login form
+    const loginBtn = document.getElementById('login-btn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            handleLogin(email, password);
+        });
+    }
+    
+    // Signup form
+    const signupBtn = document.getElementById('signup-btn');
+    if (signupBtn) {
+        signupBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('signup-confirm-password').value;
+            handleSignup(name, email, password, confirmPassword);
+        });
+    }
+    
+    // Toggle forms
+    if (elements.buttons.toggleToSignup) {
+        elements.buttons.toggleToSignup.addEventListener('click', toggleToSignup);
+    }
+    
+    if (elements.buttons.toggleToLogin) {
+        elements.buttons.toggleToLogin.addEventListener('click', toggleToLogin);
+    }
+    
+    // Logout
+    if (elements.buttons.logout) {
+        elements.buttons.logout.addEventListener('click', handleLogout);
+    }
+    
+    // Topic navigation
+    if (elements.buttons.subjectBack) {
+        elements.buttons.subjectBack.addEventListener('click', () => {
+            showScreen('home');
+        });
+    }
+
+    if (elements.buttons.topicBack) {
+        elements.buttons.topicBack.addEventListener('click', () => {
+            showScreen('subject');
+        });
+    }
+    
+    // Test submission
+    if (elements.buttons.submitTest) {
+        elements.buttons.submitTest.addEventListener('click', handleTestSubmit);
+    }
+    
+    // Mock exam
+    if (elements.buttons.startMock) {
+        elements.buttons.startMock.addEventListener('click', startMockExam);
+    }
+    
+    if (elements.buttons.submitMock) {
+        elements.buttons.submitMock.addEventListener('click', submitMockExam);
+    }
+    
+    if (elements.buttons.backToDashboard) {
+        elements.buttons.backToDashboard.addEventListener('click', handleBackToDashboard);
+    }
+}
+
+// Start the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);

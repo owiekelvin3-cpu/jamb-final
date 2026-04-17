@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 const Register = ({ onToggleMode }) => {
   const [name, setName] = useState('');
@@ -11,7 +10,6 @@ const Register = ({ onToggleMode }) => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const { signUp } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -43,7 +43,7 @@ CREATE POLICY "Users can insert own test results" ON test_results
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_progress_user_id ON progress(user_id);
-CREATE INDEX IF NOT EXISTS idx_progress_subject_level ON progress(subject, level);
+CREATE INDEX IF NOT EXISTS idx_progress_lesson_id ON progress(lesson_id);
 CREATE INDEX IF NOT EXISTS idx_test_results_user_id ON test_results(user_id);
 CREATE INDEX IF NOT EXISTS idx_test_results_subject ON test_results(subject);
 CREATE INDEX IF NOT EXISTS idx_test_results_created_at ON test_results(created_at);

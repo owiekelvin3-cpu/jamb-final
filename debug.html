@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAMB Success - Debug</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Simple Test Screen -->
+        <div id="test-screen" class="screen">
+            <div style="text-align: center; padding: 50px;">
+                <h1>JAMB Success - Debug Mode</h1>
+                <p>Testing basic functionality...</p>
+                <div id="debug-info"></div>
+                <button onclick="testAuth()" class="btn-primary">Test Authentication</button>
+                <button onclick="testCurriculum()" class="btn-primary">Test Curriculum</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confetti Container -->
+    <div id="confetti-container" class="confetti-container"></div>
+    
+    <script>
+        console.log('Debug HTML loaded');
+        document.getElementById('debug-info').innerHTML = 'HTML loaded successfully';
+        
+        function testAuth() {
+            console.log('Testing Supabase...');
+            document.getElementById('debug-info').innerHTML = 'Testing Supabase connection...';
+            
+            if (typeof supabase !== 'undefined') {
+                const { createClient } = supabase;
+                const client = createClient('https://lwfxbyuquzjgukrznwqk.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3ZnhieXVxdXpqZ3Vrcnpud3FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTk3MTcsImV4cCI6MjA5MTY5NTcxN30.vSxj_bpNsNUREo6THSmFdEqE7xIc8flWcskEoLXiuIQ');
+                document.getElementById('debug-info').innerHTML = 'Supabase client created successfully!';
+            } else {
+                document.getElementById('debug-info').innerHTML = 'Supabase not loaded';
+            }
+        }
+        
+        function testCurriculum() {
+            console.log('Testing Curriculum...');
+            document.getElementById('debug-info').innerHTML = 'Testing curriculum...';
+            
+            if (typeof window.Curriculum !== 'undefined') {
+                const subjects = Object.keys(window.Curriculum.CURRICULUM);
+                document.getElementById('debug-info').innerHTML = `Curriculum loaded! Subjects: ${subjects.join(', ')}`;
+            } else {
+                document.getElementById('debug-info').innerHTML = 'Curriculum not loaded';
+            }
+        }
+    </script>
+    
+    <script src="curriculum.js"></script>
+    <script src="supabase-client.js"></script>
+    <script>
+        console.log('All scripts loaded');
+        document.getElementById('debug-info').innerHTML = 'All scripts loaded - Ready!';
+    </script>
+</body>
+</html>

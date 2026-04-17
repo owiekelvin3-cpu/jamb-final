@@ -60,8 +60,8 @@
                             <input type="password" id="signup-password" placeholder="Enter your password (min 6 characters)" required>
                         </div>
                         <div class="form-group">
-                            <label for="signup-confirm">Confirm Password</label>
-                            <input type="password" id="signup-confirm" placeholder="Confirm your password" required>
+                            <label for="signup-confirm-password">Confirm Password</label>
+                            <input type="password" id="signup-confirm-password" placeholder="Confirm your password" required>
                         </div>
                         <button type="submit" id="signup-btn" class="btn-primary">Create Account</button>
                         <div id="signup-error" class="error-message"></div>
@@ -260,6 +260,28 @@
             </main>
         </div>
 
+        <!-- Subject Screen -->
+        <div id="subject-screen" class="screen hidden">
+            <header class="subject-header">
+                <button id="subject-back-btn" class="btn-secondary">
+                    <span>Back to Home</span>
+                </button>
+                <div class="subject-info">
+                    <h1 id="subject-title" class="subject-title">Subject Name</h1>
+                    <div class="subject-meta">
+                        <span class="subject-icon" id="subject-icon"></span>
+                        <span class="subject-name" id="subject-name">Subject Name</span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="subject-content">
+                <div class="levels-container">
+                    <!-- Levels and topics will be dynamically inserted here -->
+                </div>
+            </main>
+        </div>
+
         <!-- Topic Screen -->
         <div id="topic-screen" class="screen hidden">
             <header class="topic-header">
@@ -282,12 +304,12 @@
                     <div class="step-header">
                         <h2 id="step-title" class="step-title">📖 Learn</h2>
                         <div class="step-indicator">
-                            <span class="step-dot active" id="learn-dot"></span>
-                            <span class="step-line active" id="learn-line"></span>
-                            <span class="step-dot" id="practice-dot"></span>
-                            <span class="step-line" id="practice-line"></span>
-                            <span class="step-dot" id="test-dot"></span>
-                            <span class="step-line" id="test-line"></span>
+                            <span class="step-dot active"></span>
+                            <span class="step-line active"></span>
+                            <span class="step-dot"></span>
+                            <span class="step-line"></span>
+                            <span class="step-dot"></span>
+                            <span class="step-line"></span>
                         </div>
                     </div>
 
@@ -311,18 +333,19 @@
                             <button id="start-practice-btn" class="btn-primary">✏️ Start Practice →</button>
                         </div>
                     </div>
+                </div>
 
                 <!-- Practice Step -->
                 <div id="practice-step" class="topic-step hidden">
                     <div class="step-header">
                         <h2 class="step-title">📝 Practice Mode</h2>
                         <div class="step-indicator">
-                            <span class="step-dot" id="learn-dot"></span>
-                            <span class="step-line" id="learn-line"></span>
-                            <span class="step-dot active" id="practice-dot"></span>
-                            <span class="step-line active" id="practice-line"></span>
-                            <span class="step-dot" id="test-dot"></span>
-                            <span class="step-line" id="test-line"></span>
+                            <span class="step-dot"></span>
+                            <span class="step-line"></span>
+                            <span class="step-dot active"></span>
+                            <span class="step-line active"></span>
+                            <span class="step-dot"></span>
+                            <span class="step-line"></span>
                         </div>
                     </div>
 
@@ -340,12 +363,12 @@
                     <div class="step-header">
                         <h2 class="step-title">🎯 Test Mode</h2>
                         <div class="step-indicator">
-                            <span class="step-dot" id="learn-dot"></span>
-                            <span class="step-line" id="learn-line"></span>
-                            <span class="step-dot" id="practice-dot"></span>
-                            <span class="step-line" id="practice-line"></span>
-                            <span class="step-dot active" id="test-dot"></span>
-                            <span class="step-line active" id="test-line"></span>
+                            <span class="step-dot"></span>
+                            <span class="step-line"></span>
+                            <span class="step-dot"></span>
+                            <span class="step-line"></span>
+                            <span class="step-dot active"></span>
+                            <span class="step-line active"></span>
                         </div>
                     </div>
 
@@ -418,6 +441,8 @@
 
     <!-- Confetti Container -->
     <div id="confetti-container" class="confetti-container"></div>
+    <script src="curriculum.js"></script>
+    <script src="supabase-client.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
